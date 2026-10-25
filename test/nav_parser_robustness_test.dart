@@ -242,9 +242,138 @@ void main() {
     ]);
     expect(home, hasLength(1));
     expect(home.single['title'], 'Mixed for you');
+    expect(home.single.containsKey('header'), isFalse);
     final contents = home.single['contents'] as List;
     expect(contents.single, isA<Playlist>());
     expect((contents.single as Playlist).title, 'Good');
+  });
+
+  group('home shelf header', () {
+    Map<String, dynamic> shelf(Map<String, dynamic> header) => {
+          'header': {'musicCarouselShelfBasicHeaderRenderer': header}
+        };
+    Map<String, dynamic> thumbnail(List<String> urls, {bool circle = false}) =>
+        {
+          'musicThumbnailRenderer': {
+            'thumbnail': {
+              'thumbnails': [
+                for (final u in urls) {'url': u, 'width': 60, 'height': 60}
+              ]
+            },
+            if (circle) 'thumbnailCrop': 'MUSIC_THUMBNAIL_CROP_CIRCLE',
+          }
+        };
+
+    test('"Similar to" over an artist: the line, their photo, a name', () {
+      final header = parseShelfHeader(shelf({
+        'strapline': {
+          'runs': [
+            {'text': 'Similar to'}
+          ]
+        },
+        'title': {
+          'runs': [
+            {
+              'text': 'Nova Hart',
+              'navigationEndpoint': {
+                'browseEndpoint': {
+                  'browseId': 'UCnova',
+                  'browseEndpointContextSupportedConfigs': {
+                    'browseEndpointContextMusicConfig': {
+                      'pageType': 'MUSIC_PAGE_TYPE_ARTIST'
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        'thumbnail': thumbnail(
+            ['https://lh3.example/nova=w60', 'https://lh3.example/nova=w226']),
+      }));
+      expect(header, {
+        'strapline': 'Similar to',
+        'art': 'https://lh3.example/nova=w226',
+        'round': true,
+        'named': true,
+      });
+    });
+
+    test('your name and picture over Listen again: round, not a name', () {
+      final header = parseShelfHeader(shelf({
+        'strapline': {
+          'runs': [
+            {'text': 'Sam '},
+            {'text': 'Okafor'}
+          ]
+        },
+        // A link to a feed, not to someone's page: still a heading.
+        'title': {
+          'runs': [
+            {
+              'text': 'Listen again',
+              'navigationEndpoint': {
+                'browseEndpoint': {'browseId': 'FEmusic_listen_again'}
+              }
+            }
+          ]
+        },
+        'thumbnail': thumbnail(['https://yt3.example/sam=s88'], circle: true),
+      }));
+      expect(header, {
+        'strapline': 'Sam Okafor',
+        'art': 'https://yt3.example/sam=s88',
+        'round': true,
+      });
+    });
+
+    test('a plain title, or a header in an odd shape: nothing', () {
+      expect(
+          parseShelfHeader(shelf({
+            'title': {
+              'runs': [
+                {'text': 'New releases'}
+              ]
+            }
+          })),
+          isNull);
+      expect(
+          parseShelfHeader(shelf({
+            'strapline': {'runs': 'not a list'},
+            'thumbnail': {
+              'musicThumbnailRenderer': {
+                'thumbnail': {'thumbnails': []}
+              }
+            },
+          })),
+          isNull);
+      expect(parseShelfHeader({'header': 'not a map'}), isNull);
+      expect(parseShelfHeader(null), isNull);
+    });
+
+    test('the header rides along with its shelf', () {
+      final home = parseMixedContent([
+        {
+          'musicCarouselShelfRenderer': {
+            ...shelf({
+              'strapline': {
+                'runs': [
+                  {'text': 'Similar to'}
+                ]
+              },
+              'title': {
+                'runs': [
+                  {'text': 'Nova Hart'}
+                ]
+              },
+            }),
+            'contents': [],
+          }
+        },
+      ]);
+      expect(home.single['title'], 'Nova Hart');
+      expect(home.single['header'], {'strapline': 'Similar to'});
+    });
   });
 
   test('a continuation page of another type ends paging', () async {

@@ -1,20 +1,26 @@
 import 'package:audio_service/audio_service.dart' show MediaItem;
 
 import '../models/thumbnail.dart';
+import 'shelf_header.dart';
 
 class AlbumContent {
-  AlbumContent({required this.title, required this.albumList});
+  AlbumContent({required this.title, required this.albumList, this.header});
   final String title;
   final List<Album> albumList;
+
+  /// The line and picture over the title ([ShelfHeader]).
+  final ShelfHeader? header;
 
   factory AlbumContent.fromJson(Map<dynamic, dynamic> json) => AlbumContent(
       title: json['title'],
       albumList:
-          (json['albumlist'] as List).map((e) => Album.fromJson(e)).toList());
+          (json['albumlist'] as List).map((e) => Album.fromJson(e)).toList(),
+      header: ShelfHeader.fromJson(json['header']));
   Map<String, dynamic> toJson() => {
         "type": "Album Content",
         "title": title,
-        'albumlist': albumList.map((e) => e.toJson()).toList()
+        'albumlist': albumList.map((e) => e.toJson()).toList(),
+        if (header != null) 'header': header!.toJson(),
       };
 }
 

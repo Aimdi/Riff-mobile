@@ -54,6 +54,9 @@ class HomeShelfData {
     this.kind = HomeShelfKind.collections,
     this.kicker,
     this.seeAll = false,
+    this.headerArt,
+    this.headerArtRound = false,
+    this.titleIsName = false,
   });
 
   final String id;
@@ -61,11 +64,20 @@ class HomeShelfData {
   final List<HomeItem> items;
   final HomeShelfKind kind;
 
-  /// Small line above the title ("Because you played X").
+  /// Small line above the title ("Similar to", "Because you liked").
   final String? kicker;
 
   /// The shelf has a page of its own (chevron in the header).
   final bool seeAll;
+
+  /// A picture beside the header, as YouTube Music and Spotify show the
+  /// artist or song a shelf is about; round for an artist.
+  final String? headerArt;
+  final bool headerArtRound;
+
+  /// The title is a name ("Nova Hart", a song's title): it keeps its
+  /// capitals instead of going to sentence case.
+  final bool titleIsName;
 
   HomeShelfData copyWith(
           {String? title, List<HomeItem>? items, HomeShelfKind? kind}) =>
@@ -76,6 +88,21 @@ class HomeShelfData {
         kind: kind ?? this.kind,
         kicker: kicker,
         seeAll: seeAll,
+        headerArt: headerArt,
+        headerArtRound: headerArtRound,
+        titleIsName: titleIsName,
+      );
+
+  /// The same shelf without its small line (a source said once already).
+  HomeShelfData withoutKicker() => HomeShelfData(
+        id: id,
+        title: title,
+        items: items,
+        kind: kind,
+        seeAll: seeAll,
+        headerArt: headerArt,
+        headerArtRound: headerArtRound,
+        titleIsName: titleIsName,
       );
 }
 
@@ -300,8 +327,13 @@ bool shelfArtMostlyMissing(List<HomeItem> items) =>
   final chartsKinds = <HomeShelfKind>{};
   final moodKinds = <HomeShelfKind>{};
   for (final s in shelves) {
-    final titled = s.copyWith(title: homeSentenceCase(s.title));
-    switch (classifyEditorialShelf(s.title)) {
+    // A name ("Nova Hart" under "Similar to") keeps its capitals.
+    final titled =
+        s.titleIsName ? s : s.copyWith(title: homeSentenceCase(s.title));
+    // Read with its small line: "Similar to" + "Nova Hart" is personal.
+    final kicker = s.kicker;
+    switch (classifyEditorialShelf(
+        kicker == null || kicker.isEmpty ? s.title : '$kicker ${s.title}')) {
       case HomeEditorialKind.throwback:
         break;
       case HomeEditorialKind.personal:

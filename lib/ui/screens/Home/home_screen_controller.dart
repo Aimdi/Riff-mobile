@@ -1,6 +1,7 @@
 import '/models/home_chip.dart';
 import '/models/artist.dart';
 import '/models/home_shelf_content.dart';
+import '/models/shelf_header.dart';
 import '/services/crash_report.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
@@ -346,7 +347,8 @@ class HomeScreenController extends GetxController {
         final tmp = PlaylistContent(
             playlistList: BanService.filterCollections(
                 (content["contents"]).whereType<Playlist>().toList()),
-            title: content["title"]);
+            title: content["title"],
+            header: ShelfHeader.fromJson(content["header"]));
         if (tmp.playlistList.length >= 2) {
           contentTemp.add(tmp);
         }
@@ -354,7 +356,8 @@ class HomeScreenController extends GetxController {
         final tmp = AlbumContent(
             albumList: BanService.filterCollections(
                 (content["contents"]).whereType<Album>().toList()),
-            title: content["title"]);
+            title: content["title"],
+            header: ShelfHeader.fromJson(content["header"]));
         if (tmp.albumList.length >= 2) {
           contentTemp.add(tmp);
         }
@@ -367,13 +370,19 @@ class HomeScreenController extends GetxController {
             .toList());
         final title = '${content["title"] ?? ''}';
         if (songs.length >= 4 && title.isNotEmpty) {
-          contentTemp.add(SongContent(title: title, songs: songs));
+          contentTemp.add(SongContent(
+              title: title,
+              songs: songs,
+              header: ShelfHeader.fromJson(content["header"])));
         }
       } else if (content["contents"][0] is Artist) {
         final artists = (content["contents"]).whereType<Artist>().toList();
         final title = '${content["title"] ?? ''}';
         if (artists.length >= 2 && title.isNotEmpty) {
-          contentTemp.add(ArtistShelf(title: title, artists: artists));
+          contentTemp.add(ArtistShelf(
+              title: title,
+              artists: artists,
+              header: ShelfHeader.fromJson(content["header"])));
         }
       }
     }

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/models/artist.dart';
 import 'package:harmonymusic/models/home_shelf_content.dart';
 import 'package:harmonymusic/models/media_Item_builder.dart';
+import 'package:harmonymusic/models/shelf_header.dart';
 
 MediaItem song(String id, String title, String artist) =>
     MediaItemBuilder.fromJson({
@@ -42,5 +43,47 @@ void main() {
     expect(back.artists.single.browseId, 'UC1');
     expect(back.artists.single.name, 'Clairo');
     expect(shelf.toJson()['type'], 'Artist Content');
+  });
+
+  test('the line and picture over a shelf survive the cache round trip', () {
+    const header = ShelfHeader(
+        strapline: 'Similar to',
+        art: 'https://example.com/nova.jpg',
+        round: true,
+        named: true);
+    final shelf = ArtistShelf(title: 'Nova Hart', header: header, artists: [
+      Artist(
+          name: 'Odd Weather',
+          browseId: 'UC2',
+          thumbnailUrl: 'https://example.com/o.jpg',
+          subscribers: '318K subscribers'),
+    ]);
+    final back = ArtistShelf.fromJson(shelf.toJson()).header!;
+    expect(back.strapline, 'Similar to');
+    expect(back.art, 'https://example.com/nova.jpg');
+    expect(back.round, isTrue);
+    expect(back.named, isTrue);
+
+    final songs = SongContent(
+        title: 'Listen again',
+        header: const ShelfHeader(strapline: 'Sam Okafor'),
+        songs: [song('a1', 'Redbone', 'Childish Gambino')]);
+    final again = SongContent.fromJson(songs.toJson()).header!;
+    expect(again.strapline, 'Sam Okafor');
+    expect(again.art, isNull);
+    expect(again.round, isFalse);
+    expect(again.named, isFalse);
+  });
+
+  test('shelves cached before headers, or with an empty one, have none', () {
+    final old = SongContent.fromJson({
+      'type': 'Song Content',
+      'title': 'Listen again',
+      'songs': <dynamic>[],
+    });
+    expect(old.header, isNull);
+    expect(old.toJson().containsKey('header'), isFalse);
+    expect(ShelfHeader.fromJson({'strapline': '  ', 'round': true}), isNull);
+    expect(ShelfHeader.fromJson('not a map'), isNull);
   });
 }

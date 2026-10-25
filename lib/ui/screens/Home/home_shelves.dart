@@ -28,11 +28,17 @@ import '../../widgets/songinfo_bottom_sheet.dart';
 import '../Plugins/spotify_pages.dart';
 import '../Plugins/spotify_widgets.dart'
     show playSpotifyTracks, startSpotifyRadio;
+import '../Podcasts/podcast_layout.dart'
+    show episodeDateLabel, episodeMetaLine, episodeTimeLabel;
+import '../Podcasts/podcast_queue_screen.dart' show showAddToQueueSheet;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
+import '/ui/widgets/podcast_play.dart' show openInWizeStreamIfPreferred;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
+import 'home_shelf_screen.dart' show openHomeShelf;
 import 'home_song_rows.dart';
+import 'shelf_header_art.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 import '/ui/widgets/cover_hero.dart';
@@ -52,15 +58,27 @@ class ShelfCardSize {
     return m.shelfCard;
   }
 
-  static double artHeight(Object? value, HomeShelfKind kind, HomeMetrics m) {
-    if (value is Artist || value is SpotifyArtistSummary) {
-      return RiffSizes.artistCircle;
-    }
+  static double artHeight(Object? value, HomeShelfKind kind, HomeMetrics m) =>
+      artHeightAt(value, kind, width(value, kind, m));
+
+  /// The art's height on a card [w] wide: square, round (as tall as wide),
+  /// 16:9 for a video, none on an episode's row card.
+  static double artHeightAt(Object? value, HomeShelfKind kind, double w) {
     if (value is MediaItem) {
       if (value.isPodcastEpisode) return 0;
-      if (kind == HomeShelfKind.videos) return RiffSizes.videoWidth * 9 / 16;
+      if (kind == HomeShelfKind.videos) return w * 9 / 16;
     }
-    return m.shelfCard;
+    return w;
+  }
+
+  /// The row runs on past a pane and a half: the shelf gets "See all"
+  /// (Spotify's Show all, YouTube Music's More).
+  static bool hasMore(HomeShelfData shelf, HomeMetrics m) {
+    var run = RiffSpacing.gutter * 2 - RiffSpacing.cardGap;
+    for (final i in shelf.items) {
+      run += width(i.value, shelf.kind, m) + RiffSpacing.cardGap;
+    }
+    return run > m.w * 1.5;
   }
 
   /// Title + subtitle under the art: both lines always reserved.
@@ -72,11 +90,12 @@ class ShelfCardSize {
   }
 
   /// A podcast episode row card's height.
+  /// Title on up to two lines, then the show and "Today · 45m".
   static double episodeHeight(BuildContext context) {
     return (riffLineHeight(context, _titleStyle(context)) * 2 +
-            riffLineHeight(context, _subtitleStyle(context)) +
+            riffLineHeight(context, _subtitleStyle(context)) * 2 +
             20)
-        .clamp(80.0, 140.0);
+        .clamp(80.0, 160.0);
   }
 }
 
@@ -139,7 +158,13 @@ class RiffShelf extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        RiffSectionHeader(shelf.title, kicker: shelf.kicker),
+        RiffSectionHeader(shelf.title,
+            kicker: shelf.kicker,
+            art: ShelfHeaderArt.of(shelf),
+            titleIsName: shelf.titleIsName,
+            onSeeAll: ShelfCardSize.hasMore(shelf, metrics)
+                ? () => openHomeShelf(shelf)
+                : null),
         SizedBox(
           height: height,
           child: ListView.separated(
@@ -176,11 +201,15 @@ class HomeShelfItem extends StatelessWidget {
     required this.metrics,
     this.queue = const [],
     this.spotifyQueue = const [],
+    this.width,
   });
 
   final Object? value;
   final HomeShelfKind kind;
   final HomeMetrics metrics;
+
+  /// The card's width in a grid ("See all"); null sizes it for a shelf.
+  final double? width;
 
   /// The shelf's songs, so a song card plays the shelf from itself.
   final List<MediaItem> queue;
@@ -191,8 +220,8 @@ class HomeShelfItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = value;
-    final w = ShelfCardSize.width(v, kind, metrics);
-    final h = ShelfCardSize.artHeight(v, kind, metrics);
+    final w = width ?? ShelfCardSize.width(v, kind, metrics);
+    final h = ShelfCardSize.artHeightAt(v, kind, w);
     final spotify = _spotifyCard(context, v, w, h);
     if (spotify != null) return spotify;
     if (v is Album) {
@@ -294,7 +323,9 @@ class HomeShelfItem extends StatelessWidget {
       );
     }
     if (v is MediaItem) {
-      if (v.isPodcastEpisode) return _EpisodeCard(episode: v, queue: queue);
+      if (v.isPodcastEpisode) {
+        return _EpisodeCard(episode: v, queue: queue, width: w);
+      }
       final video = kind == HomeShelfKind.videos;
       return _Card(
         width: w,
@@ -432,6 +463,10 @@ Future<void> _playSongs(List<MediaItem> queue, MediaItem song) async {
   final player = Get.find<PlayerController>();
   if (player.currentSong.value?.id == song.id) {
     player.playPause();
+    return;
+  }
+  // As the Inbox plays one: in WizeStream when that's the user's choice.
+  if (song.isPodcastEpisode && await openInWizeStreamIfPreferred(song)) {
     return;
   }
   final list = queue.isEmpty ? [song] : queue;
@@ -723,20 +758,31 @@ class _Collage extends StatelessWidget {
 
 /// A podcast episode as a 280dp row card: art, two lines of title, show.
 class _EpisodeCard extends StatelessWidget {
-  const _EpisodeCard({required this.episode, required this.queue});
+  const _EpisodeCard(
+      {required this.episode,
+      required this.queue,
+      this.width = RiffSizes.episodeWidth});
   final MediaItem episode;
   final List<MediaItem> queue;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final height = ShelfCardSize.episodeHeight(context);
+    final show = episode.artist ?? '';
+    // As the Inbox's rows: when it came out and how long it is (or how
+    // long is left).
+    final meta = episodeMetaLine([
+      episodeDateLabel(episode.extras?['date']),
+      episodeTimeLabel(episode.id, episode.duration?.inSeconds),
+    ]);
     return Semantics(
       button: true,
-      label: [episode.title, episode.artist ?? ''].join(', '),
+      label: [episode.title, show, meta].where((s) => s.isNotEmpty).join(', '),
       excludeSemantics: true,
       child: SizedBox(
-        width: RiffSizes.episodeWidth,
+        width: width,
         height: height,
         child: RiffPressScale(
           child: Material(
@@ -745,6 +791,9 @@ class _EpisodeCard extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => _playSongs(queue, episode),
+              // The Inbox's episode menu: queue, download, mark played.
+              onLongPress: () => showAddToQueueSheet(context, episode,
+                  onChanged: () => homeFeedRev.value++),
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Row(
@@ -764,10 +813,15 @@ class _EpisodeCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: _titleStyle(context)),
-                          Text(episode.artist ?? '',
+                          Text(show,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: _subtitleStyle(context)),
+                          if (meta.isNotEmpty)
+                            Text(meta,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _subtitleStyle(context)),
                         ],
                       ),
                     ),

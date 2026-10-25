@@ -169,10 +169,52 @@ List<Map<String, dynamic>> parseMixedContent(List<dynamic> rows) {
         contents.add(content);
       }
 
-      items.add({'title': title, 'contents': contents});
+      items.add({
+        'title': title,
+        'contents': contents,
+        if (parseShelfHeader(results) case final header?) 'header': header,
+      });
     }
   }
   return items;
+}
+
+/// The small line and picture over a carousel shelf's title, as YouTube
+/// Music draws them ("Similar to" over the artist's name, with the
+/// artist's photo; your name and picture over "Listen again"). A
+/// [ShelfHeader]'s map; null when the shelf has neither.
+Map<String, dynamic>? parseShelfHeader(dynamic shelf) {
+  final header =
+      nav(shelf, ['header', 'musicCarouselShelfBasicHeaderRenderer']);
+  if (header is! Map) return null;
+  final runs = nav(header, ['strapline', 'runs']);
+  final strapline = runs is List
+      ? runs.map((r) => r is Map ? '${r['text'] ?? ''}' : '').join().trim()
+      : '';
+  final thumb = nav(header, ['thumbnail', 'musicThumbnailRenderer']);
+  final thumbs = nav(thumb, ['thumbnail', 'thumbnails']);
+  final art = thumbs is List && thumbs.isNotEmpty && thumbs.last is Map
+      ? '${(thumbs.last as Map)['url'] ?? ''}'.trim()
+      : '';
+  if (strapline.isEmpty && art.isEmpty) return null;
+  final pageType =
+      nav(header, ['title', 'runs', 0, ...navigation_browse, ...page_type]);
+  // An artist's photo (or an account's) is round on YouTube Music.
+  final round = (thumb is Map &&
+          thumb['thumbnailCrop'] == 'MUSIC_THUMBNAIL_CROP_CIRCLE') ||
+      pageType == 'MUSIC_PAGE_TYPE_ARTIST';
+  // A title that opens an artist, album or song is a name ("Nova Hart"),
+  // not a heading (a link to a feed like Mixed for you has no page type).
+  final named = (pageType is String &&
+          pageType.startsWith('MUSIC_PAGE_TYPE_')) ||
+      nav(header, ['title', 'runs', 0, 'navigationEndpoint', 'watchEndpoint'])
+          is Map;
+  return {
+    if (strapline.isNotEmpty) 'strapline': strapline,
+    if (art.isNotEmpty) 'art': art,
+    if (round) 'round': true,
+    if (named) 'named': true,
+  };
 }
 
 dynamic parseVideo(dynamic result) {

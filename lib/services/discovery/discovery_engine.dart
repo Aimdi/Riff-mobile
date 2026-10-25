@@ -155,6 +155,7 @@ class DiscoveryEngine {
         reason: '',
         tracks: fresh.map(MediaItemBuilder.toJson).toList(),
         surface: DiscoverySurface.becauseYouLiked,
+        seed: seed,
       ));
     }
 

@@ -210,6 +210,16 @@ class RiffComponentSizes {
 
   static const double rowArt = 48;
 
+  /// The picture beside a shelf's header (the artist a shelf is like, the
+  /// song it grew from), as YouTube Music and Spotify show it.
+  static const double shelfHeaderArt = 40;
+
+  /// A shelf's "See all" grid: cards about this wide (two columns on a
+  /// phone, as Spotify's Show all), videos and episode cards about
+  /// [shelfGridWide] (one column on a phone).
+  static const double shelfGridCard = 168;
+  static const double shelfGridWide = 300;
+
   /// The book you're in the middle of, large (Audiobooks' hero card): its
   /// cover and its play glyph.
   static const double heroBookCover = 104;
