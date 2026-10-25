@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/home_chip.dart';
+import 'package:harmonymusic/models/shelf_header.dart';
 import 'package:harmonymusic/ui/screens/Home/explore_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen_controller.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
@@ -113,5 +114,23 @@ void main() {
     expect(opacity(find.widgetWithText(FilterChip, 'Relax')), 1);
     await tester.pumpAndSettle();
     expect(opacity(find.text('Calm albums')), 1);
+  });
+
+  test('names keep their capitals; headings go to sentence case', () {
+    Album album(String id) => Album(
+        title: 'Album $id',
+        browseId: 'MPREb_$id',
+        artists: const [],
+        thumbnailUrl: 'https://example.com/$id.jpg');
+    final shelves = exploreShelves([
+      AlbumContent(
+          title: 'Nova Hart',
+          header: const ShelfHeader(strapline: 'Similar to', named: true),
+          albumList: [album('a'), album('b')]),
+      AlbumContent(
+          title: 'New Releases For You', albumList: [album('c'), album('d')]),
+      AlbumContent(title: 'Empty', albumList: const []),
+    ]);
+    expect(shelves.map((s) => s.title), ['Nova Hart', 'New releases for you']);
   });
 }
