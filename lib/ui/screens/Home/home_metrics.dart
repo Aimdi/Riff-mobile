@@ -22,8 +22,8 @@ class HomeMetrics {
   double get jumpTile => (inner - RiffSpacing.gridGap) / 2;
 
   /// Speed dial tile: three columns with 8dp gaps.
-  double get speedTile =>
-      ((inner - RiffSpacing.gridGap * 2) / 3).clamp(0.0, 160.0);
+  double get speedTile => ((inner - RiffSpacing.gridGap * 2) / 3)
+      .clamp(0.0, RiffSizes.speedTileMax);
 
   /// Quick picks: the large item, leaving a 48dp sliver of the next; on
   /// a tablet no wider than [RiffSizes.carouselItemMax], so more than one
