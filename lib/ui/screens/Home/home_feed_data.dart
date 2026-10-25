@@ -242,9 +242,12 @@ HomeItem homePlaylistItem(Playlist p) =>
 HomeItem homeArtistItem(Artist a) =>
     HomeItem('artist:${a.browseId}', a, hasArt: _hasArtUrl(a.thumbnailUrl));
 
-/// A shelf of songs whose art is mostly 16:9 video frames is a video shelf.
+/// A shelf of songs whose art is mostly 16:9 video frames is a video shelf;
+/// one of mostly podcast episodes is shown on episode cards, not song rows.
 HomeShelfKind songShelfKind(List<MediaItem> songs) {
   if (songs.isEmpty) return HomeShelfKind.songs;
+  final episodes = songs.where((s) => s.isPodcastEpisode).length;
+  if (episodes * 2 > songs.length) return HomeShelfKind.episodes;
   final frames = songs
       .where((s) => Thumbnail.isVideoFrameUrl(s.artUri?.toString() ?? ''))
       .length;
@@ -445,6 +448,7 @@ List<HomeShelfData> riffPersonalShelves() {
     out.add(HomeShelfData(
       id: 'riff:newEpisodes',
       title: 'newEpisodes'.tr,
+      kind: HomeShelfKind.episodes,
       items: [for (final e in fresh.take(homeNewEpisodesMax)) homeSongItem(e)],
     ));
   }

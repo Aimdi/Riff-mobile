@@ -151,13 +151,22 @@ List<Map<String, dynamic>> parseMixedContent(List<dynamic> rows) {
               if (nav(data, navigation_watch_playlist_id) == null) {
                 content = parseSong(data);
               }
-            } else if (pageType == "MUSIC_PAGE_TYPE_ALBUM") {
+            } else if (pageType == "MUSIC_PAGE_TYPE_ALBUM" ||
+                pageType == "MUSIC_PAGE_TYPE_AUDIOBOOK") {
               content = parseAlbum(data, reqAlbumObj: false);
             } else if (pageType == "MUSIC_PAGE_TYPE_ARTIST") {
               content = parseRelatedArtist(data);
             } else if (pageType == "MUSIC_PAGE_TYPE_PLAYLIST") {
               content = parsePlaylist(data);
+            } else if (pageType == "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE") {
+              // YouTube Music's podcast shelves: the show opens as its page.
+              content = parsePodcastShowCard(data);
             }
+          } else if (result is Map &&
+              result['musicMultiRowListItemRenderer'] is Map) {
+            // An episode card (YouTube Music's podcast shelves).
+            content = parseEpisodeItem(Map<String, dynamic>.from(
+                result['musicMultiRowListItemRenderer']));
           } else {
             data = nav(result, [mrlir]);
             content = parseSongFlat(data);
@@ -166,7 +175,9 @@ List<Map<String, dynamic>> parseMixedContent(List<dynamic> rows) {
           continue;
         }
 
-        contents.add(content);
+        // A card of a kind Home doesn't show (a profile): left out, so the
+        // shelf is still known by its first card.
+        if (content != null) contents.add(content);
       }
 
       items.add({
@@ -358,6 +369,21 @@ Playlist parsePlaylist(Map<String, dynamic> data) {
   }
 
   return Playlist.fromJson(playlist);
+}
+
+/// A podcast's card on a YouTube Music shelf, as a playlist of kind
+/// 'podcast' (its page lists the episodes).
+Playlist parsePodcastShowCard(Map<String, dynamic> data) {
+  final runs = nav(data, ['subtitle', 'runs']);
+  return Playlist.fromJson({
+    'title': nav(data, title_text),
+    'playlistId': nav(data, ['title', 'runs', 0] + navigation_browse_id),
+    'thumbnails': nav(data, thumbnail_renderer),
+    if (runs is List)
+      'description':
+          runs.map((r) => r is Map ? '${r['text'] ?? ''}' : '').join(),
+    'kind': 'podcast',
+  });
 }
 
 List<dynamic> parseSongArtistsRuns(List<dynamic> runs) {

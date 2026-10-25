@@ -5,6 +5,7 @@ import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/durationstate.dart';
 import 'package:harmonymusic/models/home_chip.dart';
 import 'package:harmonymusic/models/home_shelf_content.dart';
+import 'package:harmonymusic/models/media_Item_builder.dart';
 import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/models/quick_picks.dart';
@@ -432,6 +433,30 @@ List<Object> homeShelves() => [
       PlaylistContent(
           title: 'Chill evening',
           playlistList: ShotData.ytPlaylists.sublist(0, 5)),
+      // YouTube Music's podcast shelves: episodes of shows you don't follow.
+      SongContent(title: 'Popular episodes', songs: [
+        for (final (i, (title, show)) in const [
+          ('How Coffee Conquered the World', 'Curious Minds'),
+          ('The Science of Sleep', 'Body Matters'),
+          ('Inside the Tour de France Peloton', 'Long Ride Home'),
+          ('Why Cities Grow the Way They Do', 'Urban Drift'),
+          ('A Short History of the Bicycle', 'Curious Minds'),
+        ].indexed)
+          MediaItemBuilder.fromJson({
+            'videoId': 'RiffYtEp${i}xxxx',
+            'title': title,
+            'artists': [
+              {'name': show, 'id': null}
+            ],
+            'thumbnails': [
+              {'url': ShotData.coverUrl('podcast $show'), 'width': 544}
+            ],
+            'length': '${38 + i * 7}:00',
+            'duration': (38 + i * 7) * 60,
+            'date': '${i + 2} days ago',
+            'videoType': 'MUSIC_VIDEO_TYPE_PODCAST_EPISODE',
+          }),
+      ]),
       AlbumContent(
           title: 'Indie & alternative',
           albumList: ShotData.albums.sublist(6, 14)),

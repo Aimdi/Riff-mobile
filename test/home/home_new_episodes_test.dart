@@ -2,9 +2,11 @@ import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harmonymusic/models/home_shelf_content.dart';
 import 'package:harmonymusic/services/podcast_inbox_counts.dart';
 import 'package:harmonymusic/ui/screens/Home/home_feed_builder.dart';
 import 'package:harmonymusic/ui/screens/Home/home_feed_data.dart';
+import 'package:harmonymusic/ui/screens/Home/home_song_rows.dart';
 import 'package:hive/hive.dart';
 
 MediaItem _ep(String id) => MediaItem(
@@ -67,5 +69,13 @@ void main() {
         .shelves
         .single;
     expect(shelf.items.map((i) => i.key), [homeSongKey('c')]);
+  });
+
+  test("YouTube Music's episode shelves show episode cards, not song rows", () {
+    final eps = [for (var i = 0; i < 6; i++) _ep('e$i')];
+    final shelf =
+        youTubeShelf(SongContent(title: 'Popular episodes', songs: eps))!;
+    expect(shelf.kind, HomeShelfKind.episodes);
+    expect(HomeSongRows.fits(shelf), isFalse);
   });
 }
