@@ -32,6 +32,7 @@ import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import 'home_feed_builder.dart';
 import 'home_feed_data.dart';
 import 'home_metrics.dart';
+import 'home_shelf_screen.dart' show openHomeShelf;
 import 'home_song_rows.dart';
 import 'shelf_header_art.dart';
 import '/ui/theme/riff_text_metrics.dart';
@@ -53,15 +54,27 @@ class ShelfCardSize {
     return m.shelfCard;
   }
 
-  static double artHeight(Object? value, HomeShelfKind kind, HomeMetrics m) {
-    if (value is Artist || value is SpotifyArtistSummary) {
-      return RiffSizes.artistCircle;
-    }
+  static double artHeight(Object? value, HomeShelfKind kind, HomeMetrics m) =>
+      artHeightAt(value, kind, width(value, kind, m));
+
+  /// The art's height on a card [w] wide: square, round (as tall as wide),
+  /// 16:9 for a video, none on an episode's row card.
+  static double artHeightAt(Object? value, HomeShelfKind kind, double w) {
     if (value is MediaItem) {
       if (value.isPodcastEpisode) return 0;
-      if (kind == HomeShelfKind.videos) return RiffSizes.videoWidth * 9 / 16;
+      if (kind == HomeShelfKind.videos) return w * 9 / 16;
     }
-    return m.shelfCard;
+    return w;
+  }
+
+  /// The row runs on past a pane and a half: the shelf gets "See all"
+  /// (Spotify's Show all, YouTube Music's More).
+  static bool hasMore(HomeShelfData shelf, HomeMetrics m) {
+    var run = RiffSpacing.gutter * 2 - RiffSpacing.cardGap;
+    for (final i in shelf.items) {
+      run += width(i.value, shelf.kind, m) + RiffSpacing.cardGap;
+    }
+    return run > m.w * 1.5;
   }
 
   /// Title + subtitle under the art: both lines always reserved.
@@ -143,7 +156,10 @@ class RiffShelf extends StatelessWidget {
         RiffSectionHeader(shelf.title,
             kicker: shelf.kicker,
             art: ShelfHeaderArt.of(shelf),
-            titleIsName: shelf.titleIsName),
+            titleIsName: shelf.titleIsName,
+            onSeeAll: ShelfCardSize.hasMore(shelf, metrics)
+                ? () => openHomeShelf(shelf)
+                : null),
         SizedBox(
           height: height,
           child: ListView.separated(
@@ -180,11 +196,15 @@ class HomeShelfItem extends StatelessWidget {
     required this.metrics,
     this.queue = const [],
     this.spotifyQueue = const [],
+    this.width,
   });
 
   final Object? value;
   final HomeShelfKind kind;
   final HomeMetrics metrics;
+
+  /// The card's width in a grid ("See all"); null sizes it for a shelf.
+  final double? width;
 
   /// The shelf's songs, so a song card plays the shelf from itself.
   final List<MediaItem> queue;
@@ -195,8 +215,8 @@ class HomeShelfItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = value;
-    final w = ShelfCardSize.width(v, kind, metrics);
-    final h = ShelfCardSize.artHeight(v, kind, metrics);
+    final w = width ?? ShelfCardSize.width(v, kind, metrics);
+    final h = ShelfCardSize.artHeightAt(v, kind, w);
     final spotify = _spotifyCard(context, v, w, h);
     if (spotify != null) return spotify;
     if (v is Album) {
@@ -298,7 +318,9 @@ class HomeShelfItem extends StatelessWidget {
       );
     }
     if (v is MediaItem) {
-      if (v.isPodcastEpisode) return _EpisodeCard(episode: v, queue: queue);
+      if (v.isPodcastEpisode) {
+        return _EpisodeCard(episode: v, queue: queue, width: w);
+      }
       final video = kind == HomeShelfKind.videos;
       return _Card(
         width: w,
@@ -727,9 +749,13 @@ class _Collage extends StatelessWidget {
 
 /// A podcast episode as a 280dp row card: art, two lines of title, show.
 class _EpisodeCard extends StatelessWidget {
-  const _EpisodeCard({required this.episode, required this.queue});
+  const _EpisodeCard(
+      {required this.episode,
+      required this.queue,
+      this.width = RiffSizes.episodeWidth});
   final MediaItem episode;
   final List<MediaItem> queue;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -740,7 +766,7 @@ class _EpisodeCard extends StatelessWidget {
       label: [episode.title, episode.artist ?? ''].join(', '),
       excludeSemantics: true,
       child: SizedBox(
-        width: RiffSizes.episodeWidth,
+        width: width,
         height: height,
         child: RiffPressScale(
           child: Material(

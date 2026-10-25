@@ -38,6 +38,7 @@ import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'package:harmonymusic/ui/screens/Home/home_layout.dart';
 import 'package:harmonymusic/ui/screens/Podcasts/podcast_cover_tile.dart';
 import 'package:harmonymusic/ui/screens/Home/home_shelves.dart';
+import 'package:harmonymusic/ui/screens/Home/home_shelf_screen.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/ui/widgets/content_list_widget_item.dart';
 
@@ -67,6 +68,17 @@ final scenarios = <Scenario>[
     await openApp(t);
     Get.find<HomeScreenController>().networkError.value = true;
     await settle(t);
+  }),
+  // A shelf's See all (Spotify's Show all): artists, then albums.
+  Scenario('home_see_all_artists', _all, (t, d) async {
+    await openApp(t);
+    await growToFeed(t, d);
+    await _seeAll(t, d, 'Nova Hart');
+  }),
+  Scenario('home_see_all', _all, (t, d) async {
+    await openApp(t);
+    await growToFeed(t, d);
+    await _seeAll(t, d, 'New releases for you');
   }),
   Scenario('discover', _all, (t, d) => openApp(t, tab: RailTab.discover)),
   Scenario('discover_full', _all, (t, d) async {
@@ -466,6 +478,17 @@ Future<void> _openFromCard(WidgetTester tester, [Finder? card]) async {
   ];
   expect(tags.toSet().length, lessThan(tags.length),
       reason: 'no cover in flight');
+  await settle(tester);
+}
+
+/// Taps the See all chevron of the Home shelf titled [title] (on the feed
+/// grown to its full height), then shows the page at [device]'s size.
+Future<void> _seeAll(
+    WidgetTester tester, ShotDevice device, String title) async {
+  await tester.tap(find.byTooltip('${'viewAll'.tr}: $title'));
+  await settle(tester);
+  expect(find.byType(HomeShelfScreen), findsOneWidget);
+  tester.view.physicalSize = device.size * device.dpr;
   await settle(tester);
 }
 

@@ -6,8 +6,10 @@ import 'package:harmonymusic/models/artist.dart';
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'package:harmonymusic/ui/theme/riff_tokens.dart';
 import 'screens/Home/explore_screen.dart';
+import 'screens/Home/home_feed_builder.dart' show HomeShelfData;
 import 'screens/Home/home_layout_screen.dart';
 import 'screens/Home/home_screen.dart';
+import 'screens/Home/home_shelf_screen.dart';
 
 import 'screens/Album/album_screen.dart';
 import 'screens/Playlist/playlist_screen.dart';
@@ -48,6 +50,7 @@ class ScreenNavigationSetup {
   static const seekerScreen = '/seekerScreen';
   static const spotifyBridgeScreen = '/spotifyBridgeScreen';
   static const exploreScreen = '/exploreScreen';
+  static const homeShelfScreen = '/homeShelfScreen';
   static const homeLayoutScreen = '/homeLayoutScreen';
   static const podcastSettingsScreen = '/podcastSettingsScreen';
   static const podcastStatsScreen = '/podcastStatsScreen';
@@ -179,6 +182,12 @@ class _ScreenNavigationState extends State<ScreenNavigation> {
                   : null;
               return _page(
                   page: () => ExploreScreen(focusTitle: focus),
+                  settings: settings);
+
+            case ScreenNavigationSetup.homeShelfScreen:
+              final shelf = settings.arguments as HomeShelfData;
+              return _page(
+                  page: () => HomeShelfScreen(shelf: shelf),
                   settings: settings);
 
             case ScreenNavigationSetup.podcastSettingsScreen:
