@@ -21,6 +21,7 @@ import '/services/spotify_home.dart';
 import '/services/spotify_import_service.dart';
 import '/services/stats_service.dart';
 import '/ui/player/library_list_source.dart' show libraryOwnList;
+import '/ui/screens/Audiobooks/audiobook_library_controller.dart';
 import '/ui/player/player_controller.dart';
 import 'home_feed_builder.dart';
 import 'home_screen_controller.dart';
@@ -534,7 +535,26 @@ List<HomeShelfData> riffPersonalShelves() {
       ],
     ));
   }
+  if (yourAudiobooksShelf() case final books?) out.add(books);
   return out;
+}
+
+/// The books you saved, as Spotify's Home lists your audiobooks and
+/// Audible opens on your library: the free ones (playable) first, then
+/// store titles, newest first. One you've started is in Jump back in.
+HomeShelfData? yourAudiobooksShelf() {
+  if (!Get.isRegistered<AudiobookLibraryController>()) return null;
+  final lib = Get.find<AudiobookLibraryController>();
+  final items = <HomeItem>[
+    // Keyed as Jump back in keys a book in progress, so it isn't repeated.
+    for (final b in lib.savedFree)
+      HomeItem('book:${b.id}', b, hasArt: b.cover.isNotEmpty),
+    for (final b in lib.saved)
+      HomeItem('book:store:${b.id}', b, hasArt: _hasArtUrl(b.cover)),
+  ];
+  if (items.isEmpty) return null;
+  return HomeShelfData(
+      id: 'riff:audiobooks', title: 'yourAudiobooks'.tr, items: items);
 }
 
 /// Bumped when something Home shows changes outside an observable (an

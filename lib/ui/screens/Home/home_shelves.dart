@@ -11,7 +11,9 @@ import '/models/playling_from.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_service.dart';
+import '/services/audiobook_catalog_service.dart' show AudiobookItem;
 import '/services/discovery/discovery_types.dart';
+import '/services/free_audiobook_service.dart' show FreeAudiobook;
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_playback_profile.dart' show podcastShowKeyForFeed;
 import '/services/spotify_api_service.dart';
@@ -32,6 +34,8 @@ import '../Plugins/spotify_widgets.dart'
     show playSpotifyTracks, startSpotifyRadio;
 import '../Podcasts/podcast_layout.dart'
     show episodeDateLabel, episodeMetaLine, episodeTimeLabel;
+import '../Audiobooks/audiobook_widgets.dart'
+    show AudiobookCover, openFreeAudiobook, openStoreAudiobook;
 import '../Podcasts/podcast_cover_tile.dart' show podcastShowCountBadge;
 import '../Podcasts/podcast_queue_screen.dart' show showAddToQueueSheet;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
@@ -336,6 +340,35 @@ class HomeShelfItem extends StatelessWidget {
         onTap: () {
           CoverHero.launch(context);
           Get.to(() => PodcastEpisodesScreen(podcast: v.data));
+        },
+      );
+    }
+    // Your saved books: they open the book's page, the cover flying there.
+    if (v is FreeAudiobook) {
+      return _Card(
+        width: w,
+        art: AudiobookCover(url: v.cover, size: w, radius: 0),
+        artHeight: h,
+        heroTag: context,
+        title: v.title,
+        subtitle: v.author,
+        onTap: () {
+          CoverHero.launch(context);
+          openFreeAudiobook(v);
+        },
+      );
+    }
+    if (v is AudiobookItem) {
+      return _Card(
+        width: w,
+        art: AudiobookCover(url: v.cover, size: w, radius: 0),
+        artHeight: h,
+        heroTag: context,
+        title: v.title,
+        subtitle: v.author,
+        onTap: () {
+          CoverHero.launch(context);
+          openStoreAudiobook(v);
         },
       );
     }
