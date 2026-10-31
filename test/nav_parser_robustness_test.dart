@@ -296,6 +296,9 @@ void main() {
         'art': 'https://lh3.example/nova=w226',
         'round': true,
         'named': true,
+        // The name opens the artist, as on YouTube Music.
+        'link': 'UCnova',
+        'linkType': 'artist',
       });
     });
 
@@ -373,6 +376,103 @@ void main() {
       ]);
       expect(home.single['title'], 'Nova Hart');
       expect(home.single['header'], {'strapline': 'Similar to'});
+    });
+  });
+
+  group('home podcast shelves', () {
+    Map<String, dynamic> card(String title, String browseId, String pageType) =>
+        {
+          'musicTwoRowItemRenderer': {
+            'title': {
+              'runs': [
+                {
+                  'text': title,
+                  'navigationEndpoint': {
+                    'browseEndpoint': {
+                      'browseId': browseId,
+                      'browseEndpointContextSupportedConfigs': {
+                        'browseEndpointContextMusicConfig': {
+                          'pageType': pageType
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            'subtitle': {
+              'runs': [
+                {'text': 'Podcast'},
+                {'text': ' • '},
+                {'text': 'Long Way Round'}
+              ]
+            },
+          }
+        };
+    Map<String, dynamic> episode(String id, String title, String show) => {
+          'musicMultiRowListItemRenderer': {
+            'onTap': {
+              'watchEndpoint': {'videoId': id}
+            },
+            'title': {
+              'runs': [
+                {'text': title}
+              ]
+            },
+            'secondTitle': {
+              'runs': [
+                {'text': show}
+              ]
+            },
+            'subtitle': {
+              'runs': [
+                {'text': '3 days ago'}
+              ]
+            },
+          }
+        };
+    List<Map<String, dynamic>> shelf(String title, List<Object> contents) => [
+          {
+            'musicCarouselShelfRenderer': {
+              'header': {
+                'musicCarouselShelfBasicHeaderRenderer': {
+                  'title': {
+                    'runs': [
+                      {'text': title}
+                    ]
+                  }
+                }
+              },
+              'contents': contents,
+            }
+          }
+        ];
+
+    test('a podcast opens as its page; a profile is left out', () {
+      final home = parseMixedContent(shelf('Podcasts for you', [
+        // A profile first: the shelf used to be judged by it and dropped.
+        card('Some channel', 'UCprofile', 'MUSIC_PAGE_TYPE_USER_CHANNEL'),
+        card('The Long Way Round', 'MPSPlongway',
+            'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'),
+        card('Kitchen Table Science', 'MPSPkitchen',
+            'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'),
+      ]));
+      final shows = (home.single['contents'] as List).cast<Playlist>();
+      expect(shows.map((p) => p.playlistId), ['MPSPlongway', 'MPSPkitchen']);
+      expect(shows.every((p) => p.kind == 'podcast'), isTrue);
+      expect(shows.first.title, 'The Long Way Round');
+    });
+
+    test('episode cards are episodes, by their show', () {
+      final home = parseMixedContent(shelf('Popular episodes', [
+        episode('ep1', 'Walking the Camino', 'The Long Way Round'),
+        episode('ep2', 'Why bread rises', 'Kitchen Table Science'),
+      ]));
+      final eps = (home.single['contents'] as List).cast<MediaItem>();
+      expect(eps.map((e) => e.id), ['ep1', 'ep2']);
+      expect(eps.first.title, 'Walking the Camino');
+      expect(eps.first.artist, 'The Long Way Round');
+      expect(eps.first.extras?['isPodcast'], isTrue);
     });
   });
 

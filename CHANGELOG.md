@@ -1,3 +1,27 @@
+# 1.7.156
+
+* Home: Recently played, the albums and playlists you last played from,
+  newest first, as Spotify's Recently played and Apple Music's Recently
+  Played show them. Your Library's lists and saved playlists and albums
+  show at once; others once you play from them again. Nothing is kept in
+  a private session
+* Home: Your audiobooks, the books you saved (the free ones first, then
+  store titles), as Spotify's Home and Audible's library list them; one
+  you're in the middle of stays in Jump back in
+* Home: Your shows' covers count their new episodes, as in Podcasts ›
+  Subscriptions (Pocket Casts, AntennaPod)
+* Home: YouTube Music's podcast shelves and audiobooks show up: a
+  podcast opens its page, episodes come on episode cards, an audiobook
+  opens as an album. A shelf that began with a card Home can't show (a
+  profile) is no longer dropped whole
+* Home: a shelf's title opens what it names, as YouTube Music links it
+  (tap "Nova Hart" under "Similar to" for the artist); any other title
+  opens See all, as Spotify's and Apple Music's do
+* Discover: a "Similar to" shelf keeps the artist's name as written
+  ("Nova Hart", not "Nova hart")
+* Tablets: Speed dial's tiles grow to fill the pane, as the sections
+  above and below do
+
 # 1.7.155
 
 * Home: a shelf about someone says so, as YouTube Music and Spotify show

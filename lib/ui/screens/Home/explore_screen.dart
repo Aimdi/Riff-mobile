@@ -13,6 +13,16 @@ import 'home_metrics.dart';
 import 'home_screen_controller.dart';
 import 'home_shelves.dart';
 
+/// The Explore page's shelves from YouTube Music's [raw] ones, titles in
+/// sentence case, but a name ("Nova Hart" under "Similar to") as written.
+List<HomeShelfData> exploreShelves(List raw) => [
+      for (final s in raw)
+        if (youTubeShelf(s) case final shelf? when shelf.items.isNotEmpty)
+          shelf.titleIsName
+              ? shelf
+              : shelf.copyWith(title: homeSentenceCase(shelf.title)),
+    ];
+
 /// "Explore more": every YouTube Music shelf (Home shows four), plus
 /// YouTube's genre chips, which filter this page.
 class ExploreScreen extends StatelessWidget {
@@ -90,17 +100,6 @@ class _ExploreFeedState extends State<ExploreFeed>
     );
   }
 
-  List<HomeShelfData> _shelves(List raw) {
-    final shelves = [
-      for (final s in raw)
-        if (youTubeShelf(s) case final shelf?) shelf,
-    ];
-    return [
-      for (final s in shelves)
-        if (s.items.isNotEmpty) s.copyWith(title: homeSentenceCase(s.title)),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final home = Get.find<HomeScreenController>();
@@ -111,7 +110,7 @@ class _ExploreFeedState extends State<ExploreFeed>
         final selected = home.selectedChip.value;
         final loading = home.chipLoading.value;
         final error = home.chipError.value;
-        final shelves = _shelves(selected != null
+        final shelves = exploreShelves(selected != null
             ? home.chipContent.toList()
             : [...home.middleContent, ...home.fixedContent]);
         final shown = (

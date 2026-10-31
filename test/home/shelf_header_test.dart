@@ -69,4 +69,48 @@ void main() {
     expect(ShelfHeaderArt.of(_shelf()), isNull);
     expect(ShelfHeaderArt.of(_shelf(art: '')), isNull);
   });
+
+  testWidgets('the title opens the artist when it names one', (tester) async {
+    final handle = tester.ensureSemantics();
+    var opened = 0, seeAll = 0;
+    await tester.pumpWidget(_app(RiffSectionHeader(
+      'Nova Hart',
+      kicker: 'Similar to',
+      titleIsName: true,
+      onTitleTap: () => opened++,
+      onSeeAll: () => seeAll++,
+    )));
+    await tester.tap(find.text('Nova Hart'));
+    expect((opened, seeAll), (1, 0));
+    await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+    expect((opened, seeAll), (1, 1));
+    // TalkBack: the heading is a button of its own here.
+    final heading = tester.getSemantics(find.text('Nova Hart'));
+    expect(heading.hasFlag(SemanticsFlag.isHeader), isTrue);
+    expect(heading.hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(heading.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    handle.dispose();
+  });
+
+  testWidgets('otherwise the title opens See all, and TalkBack has one button',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    var seeAll = 0;
+    await tester.pumpWidget(_app(RiffSectionHeader(
+      'New releases for you',
+      onSeeAll: () => seeAll++,
+    )));
+    await tester.tap(find.text('New releases for you'));
+    expect(seeAll, 1);
+    final heading = tester.getSemantics(find.text('New releases for you'));
+    expect(heading.hasFlag(SemanticsFlag.isHeader), isTrue);
+    expect(heading.hasFlag(SemanticsFlag.isButton), isFalse);
+    expect(heading.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+    handle.dispose();
+  });
+
+  testWidgets('a header that opens nothing is plain text', (tester) async {
+    await tester.pumpWidget(_app(const RiffSectionHeader('Listen again')));
+    expect(find.byType(InkWell), findsNothing);
+  });
 }

@@ -22,8 +22,8 @@ class HomeMetrics {
   double get jumpTile => (inner - RiffSpacing.gridGap) / 2;
 
   /// Speed dial tile: three columns with 8dp gaps.
-  double get speedTile =>
-      ((inner - RiffSpacing.gridGap * 2) / 3).clamp(0.0, 160.0);
+  double get speedTile => ((inner - RiffSpacing.gridGap * 2) / 3)
+      .clamp(0.0, RiffSizes.speedTileMax);
 
   /// Quick picks: the large item, leaving a 48dp sliver of the next; on
   /// a tablet no wider than [RiffSizes.carouselItemMax], so more than one
@@ -71,6 +71,7 @@ class RiffSectionHeader extends StatelessWidget {
     this.art,
     this.titleIsName = false,
     this.onSeeAll,
+    this.onTitleTap,
     this.action,
     this.top = RiffSpacing.section,
   });
@@ -82,6 +83,11 @@ class RiffSectionHeader extends StatelessWidget {
   /// The title is a name (an artist, a song): it keeps its capitals.
   final bool titleIsName;
   final VoidCallback? onSeeAll;
+
+  /// What the title (and its picture) open of their own: the artist a
+  /// shelf is like, as YouTube Music's header links it. Without it the
+  /// title opens [onSeeAll], as Spotify's and Apple Music's do.
+  final VoidCallback? onTitleTap;
   final Widget? action;
   final double top;
 
@@ -111,41 +117,65 @@ class RiffSectionHeader extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: RiffSpacing.headerRow),
         child: Row(
           children: [
-            if (art != null) ...[
-              art!,
-              const SizedBox(width: RiffSpacing.md),
-            ],
-            Expanded(
-              child: Semantics(
-                header: true,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (kicker != null && kicker!.isNotEmpty)
-                      Text(
-                        kicker!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: riffMuted(context)),
-                      ),
-                    // A name ("Because you liked" a song) may take a
-                    // second line on a phone rather than lose its end.
-                    Text(
-                      titleIsName ? title : homeSentenceCase(title),
-                      maxLines: titleIsName ? 2 : 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: riffSectionTitleStyle(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            Expanded(child: _lead(context, theme)),
             if (trailing != null) trailing,
           ],
         ),
       ),
+    );
+  }
+
+  /// The picture, the line and the title; tappable when they open
+  /// something ([onTitleTap], else [onSeeAll]).
+  Widget _lead(BuildContext context, ThemeData theme) {
+    final heading = Semantics(
+      header: true,
+      // A button for TalkBack only when it opens something of its own: for
+      // See all the chevron is that button.
+      button: onTitleTap != null,
+      onTap: onTitleTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (kicker != null && kicker!.isNotEmpty)
+            Text(
+              kicker!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: riffMuted(context)),
+            ),
+          // A name ("Because you liked" a song) may take a second line on a
+          // phone rather than lose its end.
+          Text(
+            titleIsName ? title : homeSentenceCase(title),
+            maxLines: titleIsName ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: riffSectionTitleStyle(context),
+          ),
+        ],
+      ),
+    );
+    final lead = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: RiffSpacing.headerRow),
+      child: Row(
+        children: [
+          if (art != null) ...[
+            art!,
+            const SizedBox(width: RiffSpacing.md),
+          ],
+          Expanded(child: heading),
+        ],
+      ),
+    );
+    final tap = onTitleTap ?? onSeeAll;
+    if (tap == null) return lead;
+    return InkWell(
+      excludeFromSemantics: true,
+      borderRadius: BorderRadius.circular(RiffSizes.tileRadius),
+      onTap: tap,
+      child: lead,
     );
   }
 }

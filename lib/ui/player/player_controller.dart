@@ -43,7 +43,9 @@ import '../../utils/media_item_video.dart';
 import '/models/media_Item_builder.dart';
 import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
+import '/models/album.dart';
 import '/models/durationstate.dart';
+import '/models/playlist.dart';
 import '/services/music_service.dart';
 import '/services/music_autoplay.dart';
 import '/services/explicit_content.dart';
@@ -1879,7 +1881,29 @@ class PlayerController extends GetxController
         !PrivateSession.isActive &&
         (playfrom.type == PlaylingFromType.PLAYLIST ||
             playfrom.type == PlaylingFromType.ALBUM)) {
-      unawaited(CollectionRecents.markPlayed(playfrom.id));
+      final item = playfrom.item;
+      final album = playfrom.type == PlaylingFromType.ALBUM;
+      unawaited(CollectionRecents.markPlayed(
+        playfrom.id,
+        type: album ? 'album' : 'playlist',
+        name: playfrom.name,
+        // Its own cover, else the song it started with (Home's Recently
+        // played shows it).
+        art: switch (item) {
+              Album a when a.thumbnailUrl.isNotEmpty => a.thumbnailUrl,
+              Playlist p when p.hasArt => p.thumbnailUrl,
+              _ => null,
+            } ??
+            mediaItems[index].artUri?.toString(),
+        by: switch (item) {
+          Album a => a.artists
+              ?.map((x) => '${x['name'] ?? ''}')
+              .where((n) => n.isNotEmpty)
+              .join(', '),
+          Playlist p => p.description,
+          _ => null,
+        },
+      ));
     }
 
     //for changing home content based on last interation

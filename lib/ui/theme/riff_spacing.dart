@@ -83,6 +83,9 @@ class RiffSizes {
   static const double speedDialPageShrink = 0.08;
   static const double speedDialPageFade = 0.45;
 
+  /// Speed dial tiles grow with the pane up to this, so three columns fill
+  /// a tablet's as Jump back in and Quick picks do.
+  static const double speedTileMax = 200;
   static const double carouselHeight = 200;
   static const double carouselPeek = 48;
   static const double carouselItemMax = 420;

@@ -3,7 +3,12 @@
 /// picture (the artist's photo, round; your own; a cover).
 class ShelfHeader {
   const ShelfHeader(
-      {this.strapline, this.art, this.round = false, this.named = false});
+      {this.strapline,
+      this.art,
+      this.round = false,
+      this.named = false,
+      this.link,
+      this.linkType});
 
   final String? strapline;
 
@@ -17,6 +22,11 @@ class ShelfHeader {
   /// page), not a heading like "Listen again": it keeps its capitals.
   final bool named;
 
+  /// The page the name opens on YouTube Music (a browse id), and what it
+  /// is: 'artist' or 'album'.
+  final String? link;
+  final String? linkType;
+
   bool get isEmpty =>
       (strapline == null || strapline!.isEmpty) &&
       (art == null || art!.isEmpty);
@@ -29,6 +39,8 @@ class ShelfHeader {
       art: _text(json['art']),
       round: json['round'] == true,
       named: json['named'] == true,
+      link: _text(json['link']),
+      linkType: _text(json['linkType']),
     );
     return h.isEmpty ? null : h;
   }
@@ -43,5 +55,7 @@ class ShelfHeader {
         if (art != null) 'art': art,
         if (round) 'round': true,
         if (named) 'named': true,
+        if (link != null) 'link': link,
+        if (linkType != null) 'linkType': linkType,
       };
 }

@@ -11,7 +11,11 @@ import '/models/playling_from.dart';
 import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_service.dart';
+import '/services/audiobook_catalog_service.dart' show AudiobookItem;
 import '/services/discovery/discovery_types.dart';
+import '/services/free_audiobook_service.dart' show FreeAudiobook;
+import '/services/podcast_inbox_counts.dart';
+import '/services/podcast_playback_profile.dart' show podcastShowKeyForFeed;
 import '/services/spotify_api_service.dart';
 import '/services/spotify_home.dart';
 import '/services/spotify_import_service.dart';
@@ -30,6 +34,9 @@ import '../Plugins/spotify_widgets.dart'
     show playSpotifyTracks, startSpotifyRadio;
 import '../Podcasts/podcast_layout.dart'
     show episodeDateLabel, episodeMetaLine, episodeTimeLabel;
+import '../Audiobooks/audiobook_widgets.dart'
+    show AudiobookCover, openFreeAudiobook, openStoreAudiobook;
+import '../Podcasts/podcast_cover_tile.dart' show podcastShowCountBadge;
 import '../Podcasts/podcast_queue_screen.dart' show showAddToQueueSheet;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import '/ui/widgets/podcast_play.dart' show openInWizeStreamIfPreferred;
@@ -42,6 +49,21 @@ import 'shelf_header_art.dart';
 import '/ui/theme/riff_text_metrics.dart';
 import '/ui/player/play_queue_order.dart' show playQueueFrom;
 import '/ui/widgets/cover_hero.dart';
+
+/// What a shelf's title opens of its own: the artist or album YouTube
+/// Music links its name to ("Similar to" Nova Hart opens Nova Hart); null
+/// for none.
+VoidCallback? shelfTitleOpens(HomeShelfData shelf) {
+  final id = shelf.titleLink;
+  if (id == null || id.isEmpty) return null;
+  return switch (shelf.titleLinkType) {
+    'artist' => () => Get.toNamed(ScreenNavigationSetup.artistScreen,
+        id: ScreenNavigationSetup.id, arguments: [true, id]),
+    'album' => () => Get.toNamed(ScreenNavigationSetup.albumScreen,
+        id: ScreenNavigationSetup.id, arguments: (null, id)),
+    _ => null,
+  };
+}
 
 /// Card sizes per item type on a shelf of pane width [m].
 class ShelfCardSize {
@@ -164,7 +186,8 @@ class RiffShelf extends StatelessWidget {
             titleIsName: shelf.titleIsName,
             onSeeAll: ShelfCardSize.hasMore(shelf, metrics)
                 ? () => openHomeShelf(shelf)
-                : null),
+                : null,
+            onTitleTap: shelfTitleOpens(shelf)),
         SizedBox(
           height: height,
           child: ListView.separated(
@@ -282,24 +305,70 @@ class HomeShelfItem extends StatelessWidget {
       );
     }
     if (v is HomeShow) {
+      final show = podcastShowKeyForFeed(v.feedUrl);
+      final waiting = show == null ? 0 : PodcastInboxCounts.count({show});
       return _Card(
         width: w,
-        art: v.artwork.isEmpty
-            ? LetterArt(title: v.title, size: w)
-            : ImageWidget(
-                song: MediaItem(
-                    id: v.feedUrl,
-                    title: v.title,
-                    artUri: Uri.tryParse(v.artwork)),
-                size: w,
-                borderRadius: 0),
+        art: Stack(
+          fit: StackFit.expand,
+          children: [
+            v.artwork.isEmpty
+                ? LetterArt(title: v.title, size: w)
+                : ImageWidget(
+                    song: MediaItem(
+                        id: v.feedUrl,
+                        title: v.title,
+                        artUri: Uri.tryParse(v.artwork)),
+                    size: w,
+                    borderRadius: 0),
+            // How many new episodes wait, as on its cover in Podcasts
+            // (Pocket Casts, AntennaPod).
+            if (podcastShowCountBadge(show) case final badge?)
+              Positioned(
+                  right: RiffSpacing.sm, top: RiffSpacing.sm, child: badge),
+          ],
+        ),
+        artHeight: h,
+        heroTag: context,
+        title: v.title,
+        subtitle: v.author,
+        extraLabel: waiting <= 0
+            ? null
+            : waiting == 1
+                ? 'newInInboxOne'.tr
+                : 'newInInbox'.trParams({'count': '$waiting'}),
+        onTap: () {
+          CoverHero.launch(context);
+          Get.to(() => PodcastEpisodesScreen(podcast: v.data));
+        },
+      );
+    }
+    // Your saved books: they open the book's page, the cover flying there.
+    if (v is FreeAudiobook) {
+      return _Card(
+        width: w,
+        art: AudiobookCover(url: v.cover, size: w, radius: 0),
         artHeight: h,
         heroTag: context,
         title: v.title,
         subtitle: v.author,
         onTap: () {
           CoverHero.launch(context);
-          Get.to(() => PodcastEpisodesScreen(podcast: v.data));
+          openFreeAudiobook(v);
+        },
+      );
+    }
+    if (v is AudiobookItem) {
+      return _Card(
+        width: w,
+        art: AudiobookCover(url: v.cover, size: w, radius: 0),
+        artHeight: h,
+        heroTag: context,
+        title: v.title,
+        subtitle: v.author,
+        onTap: () {
+          CoverHero.launch(context);
+          openStoreAudiobook(v);
         },
       );
     }
@@ -643,11 +712,16 @@ class _Card extends StatelessWidget {
     this.circle = false,
     this.centered = false,
     this.heroTag,
+    this.extraLabel,
   });
 
   final double width;
   final Widget art;
   final double artHeight;
+
+  /// Said after the title and subtitle by TalkBack (what a badge on the
+  /// art shows).
+  final String? extraLabel;
 
   /// The cover flies to the page the card opens ([CoverHero]).
   final Object? heroTag;
@@ -663,7 +737,11 @@ class _Card extends StatelessWidget {
     final align = centered ? TextAlign.center : TextAlign.start;
     return Semantics(
       button: true,
-      label: [title, if (subtitle.isNotEmpty) subtitle].join(', '),
+      label: [
+        title,
+        if (subtitle.isNotEmpty) subtitle,
+        if (extraLabel != null) extraLabel!,
+      ].join(', '),
       excludeSemantics: true,
       child: SizedBox(
         width: width,
