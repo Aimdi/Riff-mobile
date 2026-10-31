@@ -12,6 +12,8 @@ import '/models/playlist.dart';
 import '/models/thumbnail.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/discovery/discovery_types.dart';
+import '/services/podcast_inbox_counts.dart';
+import '/services/podcast_playback_profile.dart' show podcastShowKeyForFeed;
 import '/services/spotify_api_service.dart';
 import '/services/spotify_home.dart';
 import '/services/spotify_import_service.dart';
@@ -30,6 +32,7 @@ import '../Plugins/spotify_widgets.dart'
     show playSpotifyTracks, startSpotifyRadio;
 import '../Podcasts/podcast_layout.dart'
     show episodeDateLabel, episodeMetaLine, episodeTimeLabel;
+import '../Podcasts/podcast_cover_tile.dart' show podcastShowCountBadge;
 import '../Podcasts/podcast_queue_screen.dart' show showAddToQueueSheet;
 import '../Podcasts/podcasts_screen.dart' show PodcastEpisodesScreen;
 import '/ui/widgets/podcast_play.dart' show openInWizeStreamIfPreferred;
@@ -298,21 +301,38 @@ class HomeShelfItem extends StatelessWidget {
       );
     }
     if (v is HomeShow) {
+      final show = podcastShowKeyForFeed(v.feedUrl);
+      final waiting = show == null ? 0 : PodcastInboxCounts.count({show});
       return _Card(
         width: w,
-        art: v.artwork.isEmpty
-            ? LetterArt(title: v.title, size: w)
-            : ImageWidget(
-                song: MediaItem(
-                    id: v.feedUrl,
-                    title: v.title,
-                    artUri: Uri.tryParse(v.artwork)),
-                size: w,
-                borderRadius: 0),
+        art: Stack(
+          fit: StackFit.expand,
+          children: [
+            v.artwork.isEmpty
+                ? LetterArt(title: v.title, size: w)
+                : ImageWidget(
+                    song: MediaItem(
+                        id: v.feedUrl,
+                        title: v.title,
+                        artUri: Uri.tryParse(v.artwork)),
+                    size: w,
+                    borderRadius: 0),
+            // How many new episodes wait, as on its cover in Podcasts
+            // (Pocket Casts, AntennaPod).
+            if (podcastShowCountBadge(show) case final badge?)
+              Positioned(
+                  right: RiffSpacing.sm, top: RiffSpacing.sm, child: badge),
+          ],
+        ),
         artHeight: h,
         heroTag: context,
         title: v.title,
         subtitle: v.author,
+        extraLabel: waiting <= 0
+            ? null
+            : waiting == 1
+                ? 'newInInboxOne'.tr
+                : 'newInInbox'.trParams({'count': '$waiting'}),
         onTap: () {
           CoverHero.launch(context);
           Get.to(() => PodcastEpisodesScreen(podcast: v.data));
@@ -659,11 +679,16 @@ class _Card extends StatelessWidget {
     this.circle = false,
     this.centered = false,
     this.heroTag,
+    this.extraLabel,
   });
 
   final double width;
   final Widget art;
   final double artHeight;
+
+  /// Said after the title and subtitle by TalkBack (what a badge on the
+  /// art shows).
+  final String? extraLabel;
 
   /// The cover flies to the page the card opens ([CoverHero]).
   final Object? heroTag;
@@ -679,7 +704,11 @@ class _Card extends StatelessWidget {
     final align = centered ? TextAlign.center : TextAlign.start;
     return Semantics(
       button: true,
-      label: [title, if (subtitle.isNotEmpty) subtitle].join(', '),
+      label: [
+        title,
+        if (subtitle.isNotEmpty) subtitle,
+        if (extraLabel != null) extraLabel!,
+      ].join(', '),
       excludeSemantics: true,
       child: SizedBox(
         width: width,
