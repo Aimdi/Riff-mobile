@@ -11,6 +11,7 @@ import '/models/playlist.dart';
 import '/models/shelf_header.dart';
 import '/models/thumbnail.dart';
 import '/services/audiobook_progress_service.dart';
+import '/services/collection_recents.dart';
 import '/services/discovery/discovery_service.dart';
 import '/services/podcast_inbox_counts.dart';
 import '/services/podcast_progress_service.dart';
@@ -19,6 +20,7 @@ import '/services/spotify_api_service.dart';
 import '/services/spotify_home.dart';
 import '/services/spotify_import_service.dart';
 import '/services/stats_service.dart';
+import '/ui/player/library_list_source.dart' show libraryOwnList;
 import '/ui/player/player_controller.dart';
 import 'home_feed_builder.dart';
 import 'home_screen_controller.dart';
@@ -394,10 +396,73 @@ HomeItem _resumeItem(HomeResumable r) => HomeItem(
 /// Most episodes on Home's New episodes shelf (the rest are in the Inbox).
 const homeNewEpisodesMax = 12;
 
-/// Riff's own personal shelves: your mixes, new episodes and your shows.
+/// Most albums and playlists on Home's Recently played shelf.
+const homeRecentCollectionsMax = 12;
+
+/// What you played from lately, as Spotify's Recently played and Apple
+/// Music's Recently Played show it: the albums and playlists, latest
+/// first; null with fewer than two.
+HomeShelfData? recentCollectionsShelf() {
+  final items = <HomeItem>[];
+  for (final r in CollectionRecents.recent()) {
+    // The Recently played list is songs, not somewhere you played from.
+    if (r.id == 'LIBRP') continue;
+    final item = _recentCollectionItem(r);
+    if (item == null) continue;
+    items.add(item);
+    if (items.length >= homeRecentCollectionsMax) break;
+  }
+  if (items.length < 2) return null;
+  return HomeShelfData(
+      id: 'riff:recentCollections', title: 'recentlyPlayed'.tr, items: items);
+}
+
+/// [r] as the Library has it (its own lists, a saved playlist or album),
+/// else as it was when played from; null when there's too little to show.
+HomeItem? _recentCollectionItem(RecentCollection r) {
+  // The Library's own lists and your playlists draw their own covers.
+  final own = libraryOwnList(r.id);
+  if (own != null) return HomeItem('playlist:${own.playlistId}', own);
+  final playlist = _saved('LibraryPlaylists', r.id);
+  if (playlist != null) {
+    final p = Playlist.fromJson(playlist);
+    return p.isCloudPlaylist
+        ? homePlaylistItem(p)
+        : HomeItem('playlist:${p.playlistId}', p);
+  }
+  final album = _saved('LibraryAlbums', r.id);
+  if (album != null) return homeAlbumItem(Album.fromJson(album));
+  if (r.name.isEmpty) return null;
+  return switch (r.type) {
+    'album' => homeAlbumItem(Album(
+        title: r.name,
+        browseId: r.id,
+        artists: [
+          if (r.by != null) {'name': r.by}
+        ],
+        thumbnailUrl: r.art ?? '')),
+    'playlist' => homePlaylistItem(Playlist(
+        title: r.name,
+        playlistId: r.id,
+        description: r.by,
+        thumbnailUrl: r.art ?? Playlist.thumbPlaceholderUrl)),
+    _ => null,
+  };
+}
+
+Map? _saved(String box, String id) {
+  if (!Hive.isBoxOpen(box)) return null;
+  final v = Hive.box(box).get(id);
+  return v is Map ? v : null;
+}
+
+/// Riff's own personal shelves: what you played from lately, your mixes,
+/// new episodes and your shows.
 /// "Because you liked…" rows go too, with the song under the reason.
 List<HomeShelfData> riffPersonalShelves() {
-  final out = <HomeShelfData>[];
+  final out = <HomeShelfData>[
+    if (recentCollectionsShelf() case final recent?) recent,
+  ];
   final disc = Get.isRegistered<DiscoveryService>()
       ? Get.find<DiscoveryService>()
       : null;

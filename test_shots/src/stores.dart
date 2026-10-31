@@ -2,7 +2,10 @@ import 'dart:io';
 import 'dart:ui' show Color;
 
 import 'package:audio_service/audio_service.dart';
+import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/media_Item_builder.dart';
+import 'package:harmonymusic/models/playlist.dart';
+import 'package:harmonymusic/services/collection_recents.dart';
 import 'package:harmonymusic/services/podcast_bookmarks.dart'
     show episodeSnapshot;
 import 'package:harmonymusic/services/search_recents.dart';
@@ -18,7 +21,8 @@ import 'package:hive/hive.dart';
 import 'env.dart';
 import 'media_data.dart';
 import 'sample_data.dart';
-import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart' show podcastFolderIdForFeed;
+import 'package:harmonymusic/ui/screens/Podcasts/podcast_folder_controller.dart'
+    show podcastFolderIdForFeed;
 
 /// The accent the shots use: green (the default), or the one named by
 /// `--dart-define=SHOT_ACCENT=Blue` (Violet, Crimson, Amber, Cyan: see
@@ -247,6 +251,33 @@ Future<void> seedShotStores() async {
       'durationMs': totalMs,
       'updatedAt': now - (n + 1) * 7200000,
     });
+  }
+
+  // ── Played from lately (Home's Recently played) ────────────────────
+  for (final (i, item) in <Object>[
+    ShotData.album(3),
+    ShotData.userPlaylist(1),
+    ShotData.ytPlaylist(2),
+    ShotData.album(11),
+    ShotData.ytPlaylist(8),
+  ].indexed) {
+    final at = DateTime.fromMillisecondsSinceEpoch(now - (i + 1) * 3600000);
+    switch (item) {
+      case Album a:
+        await CollectionRecents.markPlayed(a.browseId,
+            at: at,
+            type: 'album',
+            name: a.title,
+            art: a.thumbnailUrl,
+            by: '${a.artists?.first['name'] ?? ''}');
+      case Playlist p:
+        await CollectionRecents.markPlayed(p.playlistId,
+            at: at,
+            type: 'playlist',
+            name: p.title,
+            art: p.hasArt ? p.thumbnailUrl : null,
+            by: p.description);
+    }
   }
 
   // ── Search history ─────────────────────────────────────────────────
