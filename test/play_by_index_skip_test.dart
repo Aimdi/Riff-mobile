@@ -167,4 +167,17 @@ void main() {
       isFalse,
     );
   });
+
+  test('Play next with shuffle on: next in the shuffle round too', () {
+    // Already in the round, further on: moved right after the song playing.
+    expect(shuffleOrderWithNext(['c', 'a', 'e', 'b', 'd'], 'a', 'd'),
+        ['c', 'a', 'd', 'e', 'b']);
+    // Already played this round: moved up all the same.
+    expect(shuffleOrderWithNext(['c', 'a', 'e'], 'a', 'c'), ['a', 'c', 'e']);
+    // Not queued yet: added there.
+    expect(shuffleOrderWithNext(['c', 'a', 'e'], 'a', 'x'),
+        ['c', 'a', 'x', 'e']);
+    // The song playing: nothing moves.
+    expect(shuffleOrderWithNext(['c', 'a'], 'a', 'a'), ['c', 'a']);
+  });
 }

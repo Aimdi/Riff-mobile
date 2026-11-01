@@ -973,6 +973,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         return;
       }
 
+      // Played again from before its end (Previous back to it, Play after
+      // the queue ended on it): its end ends it again. The guard stayed
+      // set, so the song stopped at its end and nothing came after.
+      if (!_eofAdvanceInProgress &&
+          _eofArmedForId != null &&
+          posMs < durationMs - playerDurationOffset - 1000) {
+        _eofArmedForId = null;
+      }
+
       if (posMs >= (durationMs - playerDurationOffset)) {
         final id = mediaItem.value?.id;
         if (shouldArmEofAdvance(currentId: id, lastArmedId: _eofArmedForId)) {
@@ -1431,11 +1440,13 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> pause() => pauseFrom(_externalSource());
 
-  Future<void> pauseFrom(PlaybackCommandSource source) {
+  Future<void> pauseFrom(PlaybackCommandSource source) async {
     _logCommand('pause', source);
     _resumeOnline.cancel();
     _interruptions.onUserPause();
-    return _player.pause();
+    await _player.pause();
+    // Where it was paused, should the notification be swiped away next.
+    unawaited(saveSessionData());
   }
 
   /// Calls, other apps' audio and unplugged headphones, from the audio
@@ -1590,9 +1601,18 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     final from = currentIndex is int ? currentIndex as int : -1;
     final index = _getNextSongIndex(advance: true);
     if (skipNextDidAdvance(fromIndex: from, toIndex: index)) {
-      if (_player.position != Duration.zero) _player.seek(Duration.zero);
+      // No seek to 0 first: the song left is told where it was left
+      // (scrobbles, a long track's place), and the next starts at 0.
       final result = await customAction("playByIndex", {'index': index});
       return !playByIndexHardFailed(result);
+    }
+    // Repeat all with one song in the queue: it plays again (the wrap to
+    // the start lands on itself, which read as "nothing next").
+    if (queueLoopModeEnabled && queue.value.length == 1 && from == 0) {
+      _eofArmedForId = null;
+      await _player.seek(Duration.zero);
+      if (!_player.playing) unawaited(_player.play());
+      return true;
     }
     final radioOn = Get.isRegistered<PlayerController>() &&
         Get.find<PlayerController>().isRadioModeOn;
@@ -1625,10 +1645,11 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
       _player.seek(Duration.zero);
       return true;
     }
-    _player.seek(Duration.zero);
     final from = currentIndex is int ? currentIndex as int : -1;
     final index = _getPrevSongIndex();
     if (!skipNextDidAdvance(fromIndex: from, toIndex: index)) {
+      // Nothing before it: it starts over.
+      _player.seek(Duration.zero);
       return true;
     }
     final result =
@@ -1915,6 +1936,17 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         }
 
         final resumeMs = (extras['position'] as num?)?.toInt() ?? 0;
+        // Started, not waited for: on Android play() only comes back when
+        // playback pauses or ends, so awaiting it held every guard set
+        // here (the end of an episode moving on, error recovery) through
+        // the whole next song when it started from a pause.
+        void start() => unawaited(_player.play().catchError((Object e) {
+              printERROR('playByIndex player start failed: $e');
+              if (!superseded()) {
+                _handleRuntimePlaybackError(e,
+                    position: Duration(milliseconds: resumeMs));
+              }
+            }));
         try {
           if (restoreSession || resumeMs > 0) {
             // Desktop previously skipped restore entirely; always load+seek when
@@ -1923,11 +1955,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             if (resumeMs > 0) {
               await _player.seek(Duration(milliseconds: resumeMs));
             }
-            if (!restoreSession) {
-              await _player.play();
-            }
+            if (!restoreSession) start();
           } else {
-            await _player.play();
+            start();
           }
         } catch (e) {
           printERROR('playByIndex player start failed: $e');
@@ -1938,6 +1968,9 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           );
         }
         prefetchNextInQueue();
+        // The session as it is now: listening on with the screen off saved
+        // nothing, so a swipe-away later brought back an old song.
+        unawaited(saveSessionData());
         return true;
 
       // Riff opening: the session saved last time back, paused at its
@@ -2074,6 +2107,27 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
         if (shuffleModeEnabled) {
           shuffledQueue.insert(currentShuffleIndex + 1, song.id);
         }
+        break;
+
+      // Play next with shuffle on: next in the shuffle round too (the
+      // queue's order alone didn't decide what played next), moved there
+      // when it's already queued.
+      case 'playNextShuffled':
+        final song = extras!['mediaItem'] as MediaItem;
+        final q = queue.value;
+        final idx = currentIndex is int ? currentIndex as int : -1;
+        if (!isValidQueueIndex(idx, q.length) || q[idx].id == song.id) break;
+        _syncShufflePos();
+        final current = q[idx];
+        final at = q.indexWhere((e) => e.id == song.id);
+        final item = at >= 0 ? q.removeAt(at) : song;
+        final cur = q.indexOf(current);
+        q.insert(cur + 1, item);
+        currentIndex = cur;
+        queue.add(q);
+        shuffledQueue = shuffleOrderWithNext(shuffledQueue, current.id, item.id);
+        currentShuffleIndex = shuffledQueue.indexOf(current.id);
+        playbackState.add(playbackState.value.copyWith(queueIndex: cur));
         break;
 
       case 'openEqualizer':
@@ -2502,6 +2556,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     // Stopped (the notification swiped away, the app closed): a call
     // ending later doesn't start it again.
     _interruptions.onUserPause();
+    // Where it stopped comes back next time (Continue listening).
+    await saveSessionData();
     await _player.stop();
     return super.stop();
   }

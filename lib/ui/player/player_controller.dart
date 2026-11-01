@@ -214,6 +214,18 @@ class PlayerController extends GetxController
 
   var _newSongFlag = true;
 
+  /// Bumped by every play request; one whose songs come in after a newer
+  /// request began gives way (a slow lookup used to replace what you'd
+  /// picked meanwhile).
+  int _playGen = 0;
+
+  /// Where the playing song was at its last tick before a switch began
+  /// (the handler loading the next one). The song left is told this, not
+  /// the 0 the switch reports for it while the next loads: that 0 lost
+  /// scrobbles and long tracks' places.
+  ({String? id, Duration at})? _lastPlace;
+  bool _handlerLoading = false;
+
   /// SponsorBlock segments for the current video id.
   List<SponsorBlockSegment> _sponsorSegments = const [];
   String? _sponsorVideoId;
@@ -464,6 +476,8 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPlayerState() {
     _subscriptions.add(_audioHandler.playbackState.listen((playerState) {
+      _handlerLoading =
+          playerState.processingState == AudioProcessingState.loading;
       // Video mode drives buttonState from the mpv engine's state.
       if (_videoModeActive) return;
       final isPlaying = playerState.playing;
@@ -531,6 +545,9 @@ class PlayerController extends GetxController
   /// video mode): sleep-at-end, SponsorBlock, ad chapters, podcast and
   /// audiobook progress, taste signals, then the throttled progress UI.
   void onPlaybackPosition(Duration position) {
+    if (!_handlerLoading) {
+      _lastPlace = (id: currentSong.value?.id, at: position);
+    }
     final oldState = progressBarStatus.value;
     if (isSleepEndOfSongActive.isTrue) {
       final end = _playingItemEnd(oldState.total);
@@ -1453,7 +1470,11 @@ class PlayerController extends GetxController
         printINFO(mediaItem.title);
         _newSongFlag = true;
         // Capture position before switching so DiscoveryService can score the skip.
-        final posMs = outgoingProgress.position.inMilliseconds;
+        final place = _lastPlace;
+        final posMs = (place != null && place.id == currentSong.value?.id
+                ? place.at
+                : outgoingProgress.position)
+            .inMilliseconds;
         // Persist the outgoing podcast episode against ITS OWN duration.
         PodcastProgressService.save(currentSong.value,
             Duration(milliseconds: posMs), outgoingProgress.total,
@@ -1719,6 +1740,7 @@ class PlayerController extends GetxController
   ///songs into Queue
   Future<bool> pushSongToQueue(MediaItem? mediaItem,
       {String? playlistid, bool radio = false}) async {
+    final gen = ++_playGen;
     await _waitForAudioHandler();
     if (!_audioReady) return false;
     try {
@@ -1771,6 +1793,8 @@ class PlayerController extends GetxController
         ];
       }
       if (tracks.isEmpty) return false;
+      // Something else was played while these were looked up.
+      if (gen != _playGen) return false;
 
       // Songs you queued play next in the radio, as in [playPlayListSong].
       final keep = stillQueuedByYou(currentQueue, currentSongIndex.value,
@@ -1830,6 +1854,7 @@ class PlayerController extends GetxController
 
   Future<bool> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom, DiscoverySource? source}) async {
+    _playGen++;
     await _waitForAudioHandler();
     if (!canStartPlayback(
       audioReady: _audioReady,
@@ -2250,6 +2275,17 @@ class PlayerController extends GetxController
       return enqueueSong(song);
     }
     if (!_audioReady) return false;
+    if (isShuffleModeEnabled.isTrue) {
+      final at = currentSongIndex.value;
+      if (at >= 0 && at < currentQueue.length && currentQueue[at].id == song.id) {
+        return false;
+      }
+      await _audioHandler.customAction("playNextShuffled", {
+        "mediaItem":
+            queuedByYou(ensureDiscoverySource(song, DiscoverySource.queue)),
+      });
+      return true;
+    }
     if (isPlayNextNoOp(
       songId: song.id,
       queueIds: currentQueue.map((e) => e.id).toList(),
