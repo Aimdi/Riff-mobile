@@ -47,7 +47,7 @@ bool cacheableSpotifyId(String id) =>
     id.isNotEmpty && !id.startsWith('csv_') && !id.contains(' ');
 
 final _trackId = RegExp(r'^[A-Za-z0-9]+$');
-final _trackIdIn = RegExp(r'(?:spotify:track:|/track/)([A-Za-z0-9]{22})');
+final _trackIdIn = RegExp(r'(?:spotify:track:|/track/)([A-Za-z0-9]+)');
 
 /// The bare Spotify track id (letters and digits, 22 of them from
 /// Spotify) in [raw]: one as it is, or in a `spotify:track:` URI or an open.spotify.com link (as
