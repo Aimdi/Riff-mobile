@@ -309,10 +309,11 @@ List<PodcastSegment> segmentsFromChapters(
         (i + 1 < sorted.length ? sorted[i + 1].startSec : durationSec);
     // Not from the notes' timestamps: they may not match the audio.
     if (end <= c.startSec || c.fromNotes) continue;
-    final SegmentCategory? cat = c.isAd
-        ? SegmentCategory.sponsor
-        : _promoRe.hasMatch(c.title)
-            ? SegmentCategory.selfpromo
+    // Self-promo first: "Self-promo" isn't a sponsor read.
+    final SegmentCategory? cat = _promoRe.hasMatch(c.title)
+        ? SegmentCategory.selfpromo
+        : c.isAd
+            ? SegmentCategory.sponsor
             : _introRe.hasMatch(c.title)
                 ? SegmentCategory.intro
                 : _outroRe.hasMatch(c.title)

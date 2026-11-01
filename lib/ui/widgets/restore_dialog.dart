@@ -20,6 +20,12 @@ class RestoreDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.put(RestoreDialogController());
+    // Restoring, or restored and waiting for the restart: the app's data is
+    // closed, so the dialog stays until the app restarts.
+    return Obx(() => PopScope(canPop: !c.locked, child: _dialog(context, c)));
+  }
+
+  Widget _dialog(BuildContext context, RestoreDialogController c) {
     return CommonDialog(
       child: Padding(
         padding: const EdgeInsets.only(
@@ -40,6 +46,10 @@ class RestoreDialog extends StatelessWidget {
                       color: Theme.of(context).colorScheme.onSurface);
                   if (c.restoreProgress.toInt() == c.filesToRestore.toInt()) {
                     return Text("restoreMsg".tr,
+                        textAlign: TextAlign.center, style: style);
+                  }
+                  if (c.failed.isTrue) {
+                    return Text("operationFailed".tr,
                         textAlign: TextAlign.center, style: style);
                   }
                   if (c.processingFiles.isTrue) {
@@ -103,11 +113,18 @@ class RestoreDialogController extends GetxController {
   final filesToRestore = (0).obs;
   final processingFiles = false.obs;
 
-  Future<void> restore() async {
-    if (!await PermissionService.getExtStoragePermission()) {
-      return;
-    }
+  /// The file picked couldn't be restored (not a Riff backup, cut short):
+  /// nothing on the phone was changed.
+  final failed = false.obs;
 
+  /// Restoring, or restored and waiting for the restart: the app's data is
+  /// closed meanwhile, so the dialog can't be left.
+  bool get locked =>
+      processingFiles.isTrue ||
+      restoreRunning.isTrue ||
+      restoreProgress.value == filesToRestore.value;
+
+  Future<void> restore() async {
     if (!await PermissionService.getExtStoragePermission()) {
       return;
     }
@@ -125,13 +142,31 @@ class RestoreDialogController extends GetxController {
     if (pickedFile == '/' || pickedFile == null) {
       return;
     }
+    failed.value = false;
     processingFiles.value = true;
-    await Future.delayed(const Duration(seconds: 4));
     final restoreFilePath = pickedFile.toString();
     final supportDirPath = Get.find<SettingsScreenController>().supportDirPath;
     final dbDirPath = await Get.find<SettingsScreenController>().dbDir;
     final Directory dbDir = Directory(dbDirPath);
     printInfo(info: dbDir.path);
+
+    // Read and check the backup before anything is deleted: a wrong or
+    // cut-short file used to wipe every list, playlist and setting first,
+    // then fail with nothing to put back.
+    List<ArchiveFile> files;
+    try {
+      final bytes = await File(restoreFilePath).readAsBytes();
+      files = backupFilesToRestore(ZipDecoder().decodeBytes(bytes));
+    } catch (e) {
+      printERROR('Not a backup that can be restored: $e');
+      files = const [];
+    }
+    if (files.isEmpty) {
+      processingFiles.value = false;
+      failed.value = true;
+      return;
+    }
+
     await Get.find<SettingsScreenController>().closeAllDatabases();
 
     //delele all the files with extension .hive
@@ -140,28 +175,26 @@ class RestoreDialogController extends GetxController {
         await file.delete();
       }
     }
-    final bytes = await File(restoreFilePath).readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    filesToRestore.value = archive.length;
+    filesToRestore.value = files.length;
     restoreProgress.value = 0;
     processingFiles.value = false;
     restoreRunning.value = true;
-    for (final file in archive) {
+    final restoredSongs = <String>{};
+    for (final file in files) {
       final filename = file.name;
       printINFO(filename);
-      if (file.isFile) {
-        final data = file.content as List<int>;
-        final targetFileDir =
-            filename.endsWith(".m4a") || filename.endsWith(".opus")
-                ? "$supportDirPath/Music"
-                : filename.endsWith(".png")
-                    ? "$supportDirPath/thumbnails"
-                    : dbDirPath;
-        final outputFile = File('$targetFileDir/$filename');
-        await outputFile.create(recursive: true);
-        await outputFile.writeAsBytes(data);
-        restoreProgress.value++;
-      }
+      final data = file.content as List<int>;
+      final isSong = filename.endsWith(".m4a") || filename.endsWith(".opus");
+      final targetFileDir = isSong
+          ? "$supportDirPath/Music"
+          : filename.endsWith(".png")
+              ? "$supportDirPath/thumbnails"
+              : dbDirPath;
+      final outputFile = File('$targetFileDir/$filename');
+      await outputFile.create(recursive: true);
+      await outputFile.writeAsBytes(data);
+      if (isSong) restoredSongs.add(filename);
+      restoreProgress.value++;
     }
     // Clear file picker temp directory
     final tempFilePickerDirPath =
@@ -171,23 +204,48 @@ class RestoreDialogController extends GetxController {
       await tempFilePickerDir.delete(recursive: true);
     }
 
-    // change file download path to support dir path in songs if system is windows or linux
-    if (GetPlatform.isWindows || GetPlatform.isLinux) {
-      // open the restored box
+    // Downloaded songs restored with the backup are where it put them: their
+    // paths (another phone's folder, a desktop's) point there now. Only
+    // Windows and Linux used to, so on Android they streamed instead.
+    if (restoredSongs.isNotEmpty) {
       final newSongBox = await Hive.openBox("SongDownloads");
-      final downloadedSongs = newSongBox.values.toList();
-      for (final song in downloadedSongs) {
+      for (final song in newSongBox.values.toList()) {
+        if (song is! Map) continue;
         final songPath = song["url"];
-        if (songPath != null && songPath is String) {
-          final fileName = songPath.split("/").last;
-          final newFilePath = "$supportDirPath/Music/$fileName";
-          song["url"] = newFilePath;
-          song['streamInfo'][1]['url'] = newFilePath;
-          await newSongBox.put(song["videoId"], song);
+        if (songPath is! String) continue;
+        final fileName = songPath.split(RegExp(r'[/\\]')).last;
+        if (!restoredSongs.contains(fileName)) continue;
+        final newFilePath = "$supportDirPath/Music/$fileName";
+        song["url"] = newFilePath;
+        final streamInfo = song['streamInfo'];
+        if (streamInfo is List &&
+            streamInfo.length > 1 &&
+            streamInfo[1] is Map) {
+          streamInfo[1]['url'] = newFilePath;
         }
+        await newSongBox.put(song["videoId"], song);
       }
     }
 
     restoreRunning.value = false;
   }
+}
+
+/// What a backup restores: its app data (`.hive`), downloaded songs and
+/// covers, each by its own name only. Empty when it isn't a Riff backup
+/// (no settings in it, or a file of another kind).
+List<ArchiveFile> backupFilesToRestore(Archive archive) {
+  const kinds = ['.hive', '.m4a', '.opus', '.png'];
+  final files = <ArchiveFile>[];
+  for (final f in archive) {
+    if (!f.isFile) continue;
+    final name = f.name;
+    if (name.contains('/') || name.contains('\\') || name.startsWith('.')) {
+      return const [];
+    }
+    if (!kinds.any(name.toLowerCase().endsWith)) return const [];
+    files.add(f);
+  }
+  final hasSettings = files.any((f) => f.name.toLowerCase() == 'appprefs.hive');
+  return hasSettings ? files : const [];
 }

@@ -42,14 +42,45 @@ class HiveBoxes {
     await writeFavorites(box, box.values.toList());
   }
 
-  /// Replaces Favorites with [values] (song maps), each under its song id.
-  static Future<void> writeFavorites(Box box, List values) async {
-    final byId = <String, dynamic>{
-      for (final v in values)
-        if (v is Map && v['videoId'] is String) v['videoId'] as String: v,
-    };
+  /// Replaces Favorites with [values] (song maps), each under its song id,
+  /// in that order (the first on top: a Rearrange sticks).
+  static Future<void> writeFavorites(Box box, List values,
+      {DateTime? now}) async {
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    var i = 0;
+    final byId = <String, dynamic>{};
+    for (final v in values) {
+      if (v is! Map || v['videoId'] is! String) continue;
+      byId[v['videoId'] as String] = favEntry(v, at - i++);
+    }
     await box.clear();
     await box.putAll(byId);
+  }
+
+  /// When a song was liked (ms), kept in its Favorites entry. Hive lists a
+  /// box by key, and Favorites are keyed by song id, so they listed by id:
+  /// no newest first, and a Rearrange came undone.
+  static const favAtKey = 'favAt';
+
+  /// [song] (a stored song map) as a Favorites entry liked at [at] (ms).
+  static Map<String, dynamic> favEntry(Map song, int at) =>
+      {for (final e in song.entries) '${e.key}': e.value, favAtKey: at};
+
+  /// Favorites' song maps in their order: newest liked (or as Rearrange
+  /// left them) first; songs liked before Riff kept when after those, as
+  /// they were.
+  static List<Map> favoritesInOrder(Iterable values) {
+    final songs = [
+      for (final v in values)
+        if (v is Map) v
+    ];
+    int at(Map v) => v[favAtKey] is int ? v[favAtKey] as int : -1;
+    final indexed = songs.indexed.toList()
+      ..sort((a, b) {
+        final byAt = at(b.$2).compareTo(at(a.$2));
+        return byAt != 0 ? byAt : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, v) in indexed) v];
   }
 
   static bool favContains(String songId) =>

@@ -14,6 +14,7 @@ import '../../services/piped_service.dart';
 import '../../services/spotify_like_sync.dart';
 import '../../services/yt_like_sync.dart';
 import '/models/media_Item_builder.dart';
+import '/utils/hive_boxes.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Playlist/playlist_screen_controller.dart';
@@ -31,17 +32,25 @@ import 'snackbar.dart';
 /// Downloads) are not user-created add targets.
 export 'collection_play.dart' show isSystemLibraryPlaylistId;
 
+/// Whether a song can be added to [p] here: your own playlists and Piped
+/// ones. A YouTube Music playlist kept in the Library (or brought in from
+/// your account) is only a copy, refilled from YouTube Music, and your
+/// mixes are remade: a song added to either was lost, or hid the rest of
+/// a playlist not opened yet.
+bool canAddSongsTo(Playlist p) =>
+    !isSystemLibraryPlaylistId(p.playlistId) &&
+    (p.isPipedPlaylist ||
+        (!p.isCloudPlaylist && !p.playlistId.startsWith('RIFF_')));
+
 /// User playlists for the add sheet. [LIBFAV] is pinned separately.
 List<Playlist> userPlaylistsForAddSheet({List<Playlist>? fromLibrary}) {
   if (fromLibrary != null) {
-    return fromLibrary
-        .where((p) => !isSystemLibraryPlaylistId(p.playlistId))
-        .toList();
+    return fromLibrary.where(canAddSongsTo).toList();
   }
   if (Get.isRegistered<LibraryPlaylistsController>()) {
     return Get.find<LibraryPlaylistsController>()
         .libraryPlaylists
-        .where((p) => !isSystemLibraryPlaylistId(p.playlistId))
+        .where(canAddSongsTo)
         .toList();
   }
   if (Get.isRegistered<AddToPlaylistController>()) {
@@ -158,17 +167,33 @@ Future<List<MediaItem>> addNewSongsToPlaylistBox(
   return added;
 }
 
-Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
+/// Adds [songs] to Favorites. [imported] (likes brought in from another
+/// service): only into Favorites, not liked on YouTube Music too nor
+/// downloaded with "Download Favorites" on (1,500 Spotify likes queued
+/// 1,500 of each).
+Future<bool> addSongsToLikedSongs(List<MediaItem> songs,
+    {bool imported = false}) async {
   final box = Hive.isBoxOpen('LIBFAV')
       ? Hive.box('LIBFAV')
       : await Hive.openBox('LIBFAV');
   var addedAny = false;
   for (final song in songs) {
     if (box.containsKey(song.id)) continue;
-    await box.put(song.id, MediaItemBuilder.toJson(song));
+    await box.put(
+        song.id,
+        HiveBoxes.favEntry(MediaItemBuilder.toJson(song),
+            DateTime.now().millisecondsSinceEpoch));
     addedAny = true;
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
+    }
+    if (imported) {
+      try {
+        Get.find<PlaylistScreenController>(
+                tag: const Key('LIBFAV').hashCode.toString())
+            .addNRemoveItemsinList(song, action: 'add', index: 0);
+      } catch (_) {}
+      continue;
     }
     unawaited(SpotifyLikeSync.onFavorite(song, add: true));
     unawaited(YtLikeSync.onFavorite(song, add: true));
@@ -532,6 +557,15 @@ class AddToPlaylistController extends GetxController {
       final plstBox = await Hive.openBox(playlistId);
       final before = plstBox.values.toList();
       final added = await addNewSongsToPlaylistBox(plstBox, songs);
+      // The playlist's page, if open, shows them too: its list is what
+      // Rearrange and Smart order write back, which dropped them.
+      final tag = Key(playlistId).hashCode.toString();
+      if (Get.isRegistered<PlaylistScreenController>(tag: tag)) {
+        final page = Get.find<PlaylistScreenController>(tag: tag);
+        for (final s in added) {
+          page.addNRemoveItemsinList(s, action: 'add');
+        }
+      }
       keepPlaylistDownloaded(
           songsToKeepDownloaded(before, added, isDownloaded: isSongDownloaded));
       // Shared box (Hive hands every caller the same instance): never close

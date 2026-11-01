@@ -8,6 +8,7 @@ import '../models/media_Item_builder.dart';
 import '../models/playlist.dart';
 import '../services/music_service.dart';
 import '../ui/widgets/sort_widget.dart';
+import '../utils/hive_boxes.dart';
 
 /// An abstract base class for managing playlist and album screens in the application.
 /// This class provides a set of methods and properties to handle various operations
@@ -59,7 +60,10 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
   /// [id] - The unique identifier of the album/playlist.
   void fetchSongsfromDatabase(String id) async {
     final box = await Hive.openBox(id);
-    songList.value = box.values
+    final values = id == HiveBoxes.libFav
+        ? HiveBoxes.favoritesInOrder(box.values)
+        : box.values;
+    songList.value = values
         .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
         .whereType<MediaItem>()
         .toList();
@@ -72,7 +76,8 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
 
   /// Checks the download status of the album/playlist.
   void checkDownloadStatus() {
-    bool downloaded = true;
+    // Nothing in it (not loaded): not "downloaded".
+    bool downloaded = songList.isNotEmpty;
     for (MediaItem item in songList) {
       if (!Hive.box("SongDownloads").containsKey(item.id)) {
         downloaded = false;

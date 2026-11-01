@@ -191,6 +191,10 @@ class PodcastQueueController extends GetxController {
         'transcriptType': m.extras?['transcriptType'],
         // The episode's page, for sharing it.
         'link': m.extras?['link'],
+        // A YouTube episode's show: its own speed, skips and notifications
+        // (podcastShowKey), lost when the queue came back.
+        'podcastPlaylistId': m.extras?['podcastPlaylistId'],
+        'podcastSource': m.extras?['podcastSource'],
       };
 
   MediaItem _fromMap(Map<String, dynamic> m) => MediaItem(
@@ -216,6 +220,9 @@ class PodcastQueueController extends GetxController {
           if (m['transcriptType'] != null)
             'transcriptType': m['transcriptType'],
           if (m['link'] != null) 'link': m['link'],
+          if (m['podcastPlaylistId'] != null)
+            'podcastPlaylistId': m['podcastPlaylistId'],
+          if (m['podcastSource'] != null) 'podcastSource': m['podcastSource'],
         },
       );
 }

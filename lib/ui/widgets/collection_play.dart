@@ -11,6 +11,7 @@ import '../../services/music_service.dart';
 import '../../services/piped_service.dart';
 import '../../services/playlist_mix_service.dart';
 import '../../utils/helper.dart' show printERROR;
+import '../../utils/hive_boxes.dart';
 import '../player/play_queue_order.dart';
 import '../player/player_controller.dart';
 
@@ -61,6 +62,20 @@ Future<List<MediaItem>> _loadCollectionPlayTracks({
 }) async {
   if (id.isEmpty) return const [];
 
+  // What the Library knows of it, for callers that don't (Home's long
+  // press, Speed dial pins): your own playlists and mixes play from the
+  // phone, a saved album or playlist from its saved songs first. Asked of
+  // YouTube Music, your own playlists came back empty ("Operation failed").
+  final saved =
+      _librarySaved(isAlbum ? 'LibraryAlbums' : 'LibraryPlaylists', id);
+  if (saved != null) {
+    isLibraryItem = true;
+    if (!isAlbum) {
+      isPipedPlaylist = isPipedPlaylist || saved['isPipedPlaylist'] == true;
+      isCloudPlaylist = isCloudPlaylist && saved['isCloudPlaylist'] != false;
+    }
+  }
+
   if (isAlbum) {
     if (isLibraryItem) {
       final local = await tracksFromOpenBox(id);
@@ -94,13 +109,22 @@ Future<List<MediaItem>> _loadCollectionPlayTracks({
   return List<MediaItem>.from(result['tracks'] ?? const []);
 }
 
+Map? _librarySaved(String box, String id) {
+  if (!Hive.isBoxOpen(box)) return null;
+  final v = Hive.box(box).get(id);
+  return v is Map ? v : null;
+}
+
 Future<List<MediaItem>> tracksFromOpenBox(String id) async {
   try {
     if (!Hive.isBoxOpen(id)) {
       await Hive.openBox(id);
     }
     final tracks = <MediaItem>[];
-    for (final raw in Hive.box(id).values) {
+    final box = Hive.box(id);
+    for (final raw in id == HiveBoxes.libFav
+        ? HiveBoxes.favoritesInOrder(box.values)
+        : box.values) {
       try {
         final item = MediaItemBuilder.fromJson(raw);
         if (item.id.isNotEmpty) tracks.add(item);

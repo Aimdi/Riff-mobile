@@ -115,4 +115,22 @@ void main() {
     expect([for (final v in Hive.box('LIB1').values) (v as Map)['videoId']],
         ['a', 'b']);
   });
+
+  // Smart order or a save while the in-page search showed some songs wrote
+  // back only those: the rest of the playlist was deleted.
+  test('saved while searching: the whole playlist stays', () async {
+    final box = Hive.box('LIB1');
+    await box.clear();
+    await box.addAll([
+      for (final id in ['a', 'b', 'c']) MediaItemBuilder.toJson(_song(id))
+    ]);
+    c.songList.value = [_song('a'), _song('b'), _song('c')];
+    c.onSearchStart(null);
+    c.onSearch('Song b', null);
+    expect(c.songList.map((s) => s.id), ['b']);
+    await c.updateSongsIntoDb();
+    expect(box.values.map((v) => (v as Map)['videoId']), ['a', 'b', 'c']);
+    c.onSearchClose(null);
+    expect(c.songList.map((s) => s.id), ['a', 'b', 'c']);
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/services/podcast_inbox_cache.dart';
 import '/services/podcast_library.dart';
@@ -59,13 +60,43 @@ class PodcastInboxCounts {
   }
 
   /// The Inbox as it lists episodes: not played, not archived by Keep
-  /// latest, newest first (for the car).
-  static List<MediaItem> waiting() => [
-        for (final e in _episodes())
-          if (!PodcastProgressService.isPlayed(e.id) &&
-              !PodcastLibrary.isArchived(e.id))
-            e
-      ];
+  /// latest, of a show still followed, newest first (Home, the car).
+  static List<MediaItem> waiting() {
+    final unfollowed = _unfollowed();
+    return [
+      for (final e in _episodes())
+        if (!PodcastProgressService.isPlayed(e.id) &&
+            !PodcastLibrary.isArchived(e.id) &&
+            !unfollowed(e))
+          e
+    ];
+  }
+
+  /// Whether an episode's show is no longer followed. The Inbox saved on
+  /// the phone is the last one built, so a show unfollowed since (or all
+  /// of them) still had its episodes on Home. A list not open yet can't
+  /// say, so its shows' episodes stay.
+  static bool Function(MediaItem) _unfollowed() {
+    Set<String>? keys(String box, String? Function(Map) key) {
+      if (!Hive.isBoxOpen(box)) return null;
+      return {
+        for (final v in Hive.box(box).values)
+          if (v is Map)
+            if (key(v) case final k?) k
+      };
+    }
+
+    final feeds =
+        keys('PodcastSubs', (v) => podcastShowKeyForFeed('${v['feedUrl']}'));
+    final youtube = keys('LibraryPodcasts',
+        (v) => podcastShowKeyForYoutube('${v['playlistId'] ?? ''}'));
+    return (e) {
+      final show = podcastShowKey(e);
+      if (show == null) return false;
+      final followed = podcastShowKeyIsFeed(show) ? feeds : youtube;
+      return followed != null && !followed.contains(show);
+    };
+  }
 
   static int count(Set<String> shows) => podcastWaitingCount(
         _episodes(),

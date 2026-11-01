@@ -226,7 +226,9 @@ void main() {
       expect(p.skipped, 1);
       expect(p.tracks, hasLength(2));
       final a = p.tracks[0];
-      expect(a.id, 'spotify:track:1');
+      // The bare track id: the URI as the id went to Spotify as
+      // spotify:track:spotify:track:… and failed the like sync for good.
+      expect(a.id, '1');
       expect(a.title, 'Song One');
       expect(a.artists, 'Artist A, Artist B');
       expect(a.durationMs, 215000);

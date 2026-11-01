@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
@@ -295,13 +296,14 @@ class Downloader extends GetxService {
           currentPlaylistId.value = playlistId;
           await downloadSongList((playlistQueue[playlistId]!).toList(),
               isPlaylist: true);
+          // Downloaded only when every song is: one that couldn't be
+          // (unplayable, kept failing) leaves the button there to retry.
           if (Get.isRegistered<PlaylistScreenController>(
                   tag: Key(playlistId).hashCode.toString()) &&
               playlistQueue.containsKey(playlistId)) {
             Get.find<PlaylistScreenController>(
                     tag: Key(playlistId).hashCode.toString())
-                .isDownloaded
-                .value = true;
+                .checkDownloadStatus();
           } 
           // in case of album
           else if (Get.isRegistered<AlbumScreenController>(
@@ -309,8 +311,7 @@ class Downloader extends GetxService {
               playlistQueue.containsKey(playlistId)) {
             Get.find<AlbumScreenController>(
                     tag: Key(playlistId).hashCode.toString())
-                .isDownloaded
-                .value = true;
+                .checkDownloadStatus();
           }
           playlistQueue.remove(playlistId);
         }
@@ -501,8 +502,9 @@ class Downloader extends GetxService {
         requiredAudioStream.audioCodec.name.contains("mp") ? "m4a" : "opus";
     final RegExp invalidChar =
         RegExp(r'Container.|\/|\\|\"|\<|\>|\*|\?|\:|\!|\[|\]|\¡|\||\%');
-    final songTitle = "${song.title.trim()} (${song.artist?.trim()})"
-        .replaceAll(invalidChar, "");
+    final songTitle = fileNameWithin(
+        "${song.title.trim()} (${song.artist?.trim()})"
+            .replaceAll(invalidChar, ""));
     String filePath = "$dirPath/$songTitle.$actualDownformat";
     // Another song of the same title and artist (an album version and the
     // single) keeps its own file: named apart by id.
@@ -606,4 +608,23 @@ class Downloader extends GetxService {
 
     return complete.future;
   }
+}
+
+/// [name] cut to at most [maxBytes] bytes of UTF-8, whole characters only:
+/// file systems take 255 bytes a name, and the extension (and an id) come
+/// after it. Longer names (long classical titles, many artists, CJK at
+/// three bytes a character) failed on every try, so the song never
+/// downloaded.
+String fileNameWithin(String name, {int maxBytes = 200}) {
+  if (utf8.encode(name).length <= maxBytes) return name;
+  final out = StringBuffer();
+  var bytes = 0;
+  for (final rune in name.runes) {
+    final ch = String.fromCharCode(rune);
+    final n = utf8.encode(ch).length;
+    if (bytes + n > maxBytes) break;
+    out.write(ch);
+    bytes += n;
+  }
+  return out.toString().trimRight();
 }

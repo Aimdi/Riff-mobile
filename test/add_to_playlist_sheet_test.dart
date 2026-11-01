@@ -161,6 +161,32 @@ void main() {
     expect(filtered.map((p) => p.playlistId), ['LIB999']);
   });
 
+  // A song added to a YouTube Music playlist's copy or to a mix was lost
+  // (refilled, remade), or hid the rest of a playlist not opened yet.
+  test('only playlists a song can be added to', () {
+    Playlist pl(String id, {bool cloud = false, bool piped = false}) =>
+        Playlist(
+            title: id,
+            playlistId: id,
+            thumbnailUrl: Playlist.thumbPlaceholderUrl,
+            isCloudPlaylist: cloud,
+            isPipedPlaylist: piped);
+    final filtered = userPlaylistsForAddSheet(fromLibrary: [
+      pl('LIB1'),
+      pl('PLyoutube', cloud: true),
+      pl('RIFF_daily_1'),
+      pl('piped-uuid', cloud: true, piped: true),
+    ]);
+    expect(filtered.map((p) => p.playlistId), ['LIB1', 'piped-uuid']);
+  });
+
+  test('a download name fits a file system: 200 bytes, whole characters', () {
+    expect(fileNameWithin('Song (Artist)'), 'Song (Artist)');
+    final long = fileNameWithin('交響曲' * 100);
+    expect(long.length, 66); // 3 bytes each
+    expect(fileNameWithin('a' * 300).length, 200);
+  });
+
   testWidgets('sheet pins Liked Songs then New playlist then user lists',
       (tester) async {
     // The sheet looks in your playlists for the song; this one is empty.

@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harmonymusic/services/audiobook_progress_service.dart';
+import 'package:hive/hive.dart';
 
 MediaItem absTrack(String bookId, int index, {Map<String, dynamic>? extras}) =>
     MediaItem(
@@ -46,6 +49,11 @@ void main() {
     test('handles book ids containing underscores', () {
       const t = MediaItem(id: 'abs_lib_col_77_4', title: 'c', extras: {});
       expect(AudiobookProgressService.bookIdOf(t), 'lib_col_77');
+    });
+
+    test("a free book's chapter without its extras: from the id", () {
+      const t = MediaItem(id: 'lv_moby_dick_3', title: 'c');
+      expect(AudiobookProgressService.bookIdOf(t), 'moby_dick');
     });
 
     test('returns null for a non-audiobook id', () {
@@ -102,5 +110,93 @@ void main() {
         returnsNormally,
       );
     });
+  });
+
+  group('a chapter heard to the end', () {
+    MediaItem chapter(int i, {String? next, int count = 3}) => MediaItem(
+          id: 'lv_moby_$i',
+          title: 'Chapter ${i + 1}',
+          album: 'Moby Dick',
+          artist: 'Herman Melville',
+          duration: const Duration(minutes: 30),
+          extras: {
+            'audiobookId': 'moby',
+            'audiobookTrackIndex': i,
+            'audiobookTrackCount': count,
+            if (next != null) 'audiobookNextId': next,
+          },
+        );
+    void finish(MediaItem m, int at) => AudiobookProgressService.save(
+        m, const Duration(minutes: 30), const Duration(minutes: 30),
+        nowMs: at);
+
+    setUp(() async {
+      await Hive.openBox(AudiobookProgressService.boxName, bytes: Uint8List(0));
+    });
+    tearDown(Hive.close);
+
+    // Stopped there (sleep timer at the end of a chapter) or a few seconds
+    // into the next one: the book used to have no place and started over.
+    test('leaves the book at the start of the next chapter', () {
+      AudiobookProgressService.save(chapter(0, next: 'lv_moby_1'),
+          const Duration(minutes: 10), const Duration(minutes: 30),
+          nowMs: 1);
+      finish(chapter(0, next: 'lv_moby_1'), 2);
+      final last = AudiobookProgressService.lastTrackForBook('moby')!;
+      expect(last['id'], 'lv_moby_1');
+      expect(last['positionMs'], 0);
+      expect(last['trackIndex'], 1);
+      expect(last['album'], 'Moby Dick');
+      expect(AudiobookProgressService.positionMs('lv_moby_0'), isNull);
+    });
+
+    test("a place already kept in the next chapter stays, now the latest", () {
+      AudiobookProgressService.save(
+          chapter(1), const Duration(minutes: 7), const Duration(minutes: 30),
+          nowMs: 1);
+      AudiobookProgressService.save(
+          chapter(0), const Duration(minutes: 5), const Duration(minutes: 30),
+          nowMs: 2);
+      finish(chapter(0), 3);
+      final last = AudiobookProgressService.lastTrackForBook('moby')!;
+      expect(last['id'], 'lv_moby_1');
+      expect(last['positionMs'], const Duration(minutes: 7).inMilliseconds);
+    });
+
+    test('the last chapter: the book is done, no place kept', () {
+      finish(chapter(2), 1);
+      expect(AudiobookProgressService.lastTrackForBook('moby'), isNull);
+    });
+
+    test('next chapter unknown (saved before Riff kept it): no guess', () {
+      const old = MediaItem(
+          id: 'abs_bk_4',
+          title: 'Chapter 4',
+          duration: Duration(minutes: 30),
+          extras: {'absItemId': 'bk', 'absTrackIndex': 4});
+      finish(old, 1);
+      expect(AudiobookProgressService.lastTrackForBook('bk'), isNull);
+    });
+  });
+
+  test("the chapter after: as the book listed it, else a free book's next", () {
+    expect(
+        AudiobookProgressService.nextTrackIdOf(const MediaItem(
+            id: 'abs_bk_1',
+            title: 'c',
+            extras: {'audiobookNextId': 'abs_bk_3'})),
+        'abs_bk_3');
+    expect(
+        AudiobookProgressService.nextTrackIdOf(const MediaItem(
+            id: 'lv_moby_dick_8',
+            title: 'c',
+            extras: {'audiobookTrackIndex': 8, 'audiobookTrackCount': 10})),
+        'lv_moby_dick_9');
+    expect(
+        AudiobookProgressService.nextTrackIdOf(const MediaItem(
+            id: 'lv_moby_9',
+            title: 'c',
+            extras: {'audiobookTrackIndex': 9, 'audiobookTrackCount': 10})),
+        isNull);
   });
 }

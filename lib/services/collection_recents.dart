@@ -14,7 +14,8 @@ class RecentCollection {
       this.type,
       this.name = '',
       this.art,
-      this.by});
+      this.by,
+      this.piped = false});
 
   final String id;
 
@@ -29,6 +30,9 @@ class RecentCollection {
 
   /// Who it's by (an album's artist, a playlist's description).
   final String? by;
+
+  /// A playlist of the connected Piped account.
+  final bool piped;
 }
 
 class CollectionRecents {
@@ -60,13 +64,18 @@ class CollectionRecents {
 
   /// Notes that playback started from the playlist or album [id], and
   /// what Home shows of it: its [type] ('album' or 'playlist'), [name],
-  /// cover ([art]) and who it's [by].
+  /// cover ([art]) and who it's [by]. What a play doesn't say is kept from
+  /// the last one (played from a Speed dial pin, Home's long press), and
+  /// [fallbackArt] (the song it started with) is the cover only when none
+  /// is known.
   static Future<void> markPlayed(String id,
       {DateTime? at,
       String? type,
       String? name,
       String? art,
-      String? by}) async {
+      String? fallbackArt,
+      String? by,
+      bool piped = false}) async {
     final prefs = _prefs;
     if (prefs == null || id.isEmpty) return;
     final all = snapshot()
@@ -80,15 +89,36 @@ class CollectionRecents {
     }
     await prefs.put(key, all);
     if (type == null) return;
-    final info = _info()
-      ..[id] = {
-        'type': type,
-        if (name != null && name.isNotEmpty) 'name': name,
-        if (art != null && art.isNotEmpty) 'art': art,
-        if (by != null && by.isNotEmpty) 'by': by,
-      }
-      // Forgotten with their time.
-      ..removeWhere((k, _) => !all.containsKey(k));
+    final info = _info();
+    final was = info[id] ?? const {};
+    bool given(String? v) => v != null && v.isNotEmpty;
+    info[id] = {
+      ...was,
+      'type': type,
+      if (given(name)) 'name': name,
+      if (given(art))
+        'art': art
+      else if (was['art'] == null && given(fallbackArt))
+        'art': fallbackArt,
+      if (given(by)) 'by': by,
+      if (piped) 'piped': true,
+    };
+    // Forgotten with their time.
+    info.removeWhere((k, _) => !all.containsKey(k));
+    await prefs.put(infoKey, info);
+  }
+
+  /// Forgets [id] (a playlist deleted): Home's Recently played no longer
+  /// shows it.
+  static Future<void> forget(String id) async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final all = snapshot();
+    final info = _info();
+    final timed = all.remove(id) != null;
+    final known = info.remove(id) != null;
+    if (!timed && !known) return;
+    await prefs.put(key, all);
     await prefs.put(infoKey, info);
   }
 
@@ -117,6 +147,7 @@ class CollectionRecents {
           name: text(info[id]?['name']) ?? '',
           art: text(info[id]?['art']),
           by: text(info[id]?['by']),
+          piped: info[id]?['piped'] == true,
         ),
     ];
   }

@@ -28,6 +28,7 @@ import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/m3u_playlist_import.dart';
 import '../../../services/server_login.dart';
+import '../../../services/collection_recents.dart';
 import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
@@ -196,10 +197,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   /// Reorder tracks for smoother Mix flow (BPM + Camelot greedy path).
   Future<bool> smartOrderForMix() async {
-    if (songList.length < 2) return false;
+    if (allSongs.length < 2) return false;
     try {
     final analyses = Map<String, TrackAnalysis>.from(mixAnalyses);
-    final remaining = songList.toList();
+    final remaining = allSongs.toList();
     final ordered = <MediaItem>[];
 
     // Start with a mid-tempo track when possible.
@@ -235,7 +236,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       ordered.add(remaining.removeAt(bestIdx));
     }
 
-    songList.value = ordered;
+    if (isSearchingOn.isTrue) {
+      // The whole playlist is ordered; the search still shows its matches.
+      tempListContainer = ordered;
+    } else {
+      songList.value = ordered;
+    }
     if (!playlist.value.isCloudPlaylist &&
         playlist.value.playlistId != 'LIBRP' &&
         playlist.value.playlistId != 'SongDownloads' &&
@@ -433,6 +439,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         if (res.code == 1) {
           await LibraryPins.forget(content.playlistId);
           await PlaylistFolders.forget(content.playlistId);
+          await CollectionRecents.forget(content.playlistId);
         }
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();
         return (res.code == 1);
@@ -447,6 +454,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           await LibraryPins.forget(id);
           await PlaylistFolders.forget(id);
           await PlaylistCovers.remove(id);
+          // Deleted, not just out of the Library: off Home's Recently
+          // played (a YouTube Music playlist still opens from there).
+          if (!content.isCloudPlaylist) await CollectionRecents.forget(id);
           final songsBox = await Hive.openBox(id);
           await songsBox.deleteFromDisk();
         }
@@ -463,7 +473,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   @override
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(playlist.value.playlistId);
-    final songListCopy = songList.toList();
+    final songListCopy = allSongs.toList();
     if (playlist.value.playlistId == HiveBoxes.libFav) {
       // Kept by song id, not position (the hearts look them up by id).
       await HiveBoxes.writeFavorites(
@@ -610,7 +620,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       () => jsonEncode(withoutServerLogins({
             "playlistInfo": playlist.value.toJson(),
             "songs":
-                songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
+                allSongs.map((song) => MediaItemBuilder.toJson(song)).toList(),
             "exportDate": DateTime.now().toIso8601String(),
             "appVersion": Get.find<SettingsScreenController>().currentVersion,
           })));
@@ -624,7 +634,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   /// (Metrolist, VLC, foobar2000) open it, and Riff's import brings it
   /// back song for song.
   Future<void> exportPlaylistToM3u(BuildContext context) => _exportText(
-      context, 'm3u8', () => playlistM3u(playlist.value.title, songList));
+      context, 'm3u8', () => playlistM3u(playlist.value.title, allSongs));
 
   /// Shares one of your playlists as Spotify shares one: its name with a
   /// link anyone can open (YouTube plays its first 50 songs) and its M3U
@@ -634,9 +644,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     final dir = await path_provider.getTemporaryDirectory();
     final safe = name.replaceAll(RegExp(r'[^\w\s]+'), '_').trim();
     final file = File('${dir.path}/${safe.isEmpty ? 'Playlist' : safe}.m3u8');
-    await file.writeAsString(playlistM3u(name, songList));
+    // Every song, also while the page's search shows some.
+    await file.writeAsString(playlistM3u(name, allSongs));
     await Share.shareXFiles([XFile(file.path, mimeType: 'audio/x-mpegurl')],
-        subject: name, text: SongLinkShare.playlistText(name, songList));
+        subject: name, text: SongLinkShare.playlistText(name, allSongs));
   }
 
   /// Writes what [content] makes as "<playlist name>.<extension>" (name_1,
@@ -729,7 +740,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     buffer.writeln('PlaylistBrowseId,PlaylistName,MediaId,Title,Artists,Duration,ThumbnailUrl,AlbumId,AlbumTitle,ArtistIds');
     
     // CSV Rows - one for each song
-    for (final song in songList) {
+    for (final song in allSongs) {
       // Keep playlistBrowseId blank for offline/piped playlists
       final playlistBrowseId = (!playlist.value.isCloudPlaylist || playlist.value.isPipedPlaylist)
           ? ''

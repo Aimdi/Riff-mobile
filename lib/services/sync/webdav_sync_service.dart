@@ -245,6 +245,7 @@ class WebDavSyncService {
     var received = 0, sent = 0;
     WebDavError? firstError;
     for (final c in syncCollections) {
+      if (!c.boxes.every(Hive.isBoxOpen)) continue;
       try {
         final r = await _syncCollection(dav, c, device);
         received += r.received;

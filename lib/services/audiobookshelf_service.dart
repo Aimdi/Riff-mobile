@@ -93,6 +93,7 @@ class AbsBookDetail {
     this.description,
     this.narrator,
     this.currentTime = 0,
+    this.progressUpdatedAt = 0,
     this.sessionId,
   });
   final String id;
@@ -102,6 +103,10 @@ class AbsBookDetail {
   final String? narrator;
   final List<AbsAudioTrack> tracks;
   final double currentTime;
+
+  /// When the server's place ([currentTime]) was last saved (ms since the
+  /// epoch); 0 when unknown.
+  final int progressUpdatedAt;
   final String? sessionId;
 }
 
@@ -662,8 +667,12 @@ class AudiobookshelfService extends GetxService {
       currentTime: progress is Map
           ? (progress['currentTime'] as num?)?.toDouble() ?? 0
           : 0,
+      progressUpdatedAt: _progressUpdatedAt(progress),
     );
   }
+
+  static int _progressUpdatedAt(Object? progress) =>
+      progress is Map ? (progress['lastUpdate'] as num?)?.toInt() ?? 0 : 0;
 
   static Map _mediaOf(Map item) =>
       item['media'] is Map ? item['media'] as Map : {};
@@ -673,6 +682,7 @@ class AudiobookshelfService extends GetxService {
     Map d, {
     required List<AbsAudioTrack> tracks,
     double currentTime = 0,
+    int progressUpdatedAt = 0,
     String? sessionId,
   }) {
     final media = _mediaOf(d);
@@ -696,6 +706,7 @@ class AudiobookshelfService extends GetxService {
       narrator: narrators,
       tracks: tracks,
       currentTime: currentTime,
+      progressUpdatedAt: progressUpdatedAt,
       sessionId: sessionId,
     );
   }
@@ -732,6 +743,7 @@ class AudiobookshelfService extends GetxService {
     // Metadata
     final detailRes = await _dio.get(
       '${host.value}/api/items/$itemId',
+      queryParameters: {'include': 'progress'},
       options: _authOptions,
     );
     final d = detailRes.data as Map;
@@ -791,6 +803,7 @@ class AudiobookshelfService extends GetxService {
       d,
       tracks: tracks,
       currentTime: currentTime,
+      progressUpdatedAt: _progressUpdatedAt(d['userMediaProgress']),
       sessionId: sessionId,
     );
   }
@@ -820,7 +833,9 @@ class AudiobookshelfService extends GetxService {
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
     var startOffset = 0.0;
-    return book.tracks.map((t) {
+    final tracks = book.tracks;
+    return tracks.indexed.map((e) {
+      final (i, t) = e;
       final id = trackMediaId(book.id, t.index);
       final url = streamUrl(t.contentUrl);
       final thisStart = startOffset;
@@ -840,6 +855,10 @@ class AudiobookshelfService extends GetxService {
           'absItemId': book.id,
           'absSessionId': book.sessionId,
           'absTrackIndex': t.index,
+          // The chapter after this one, where a finished chapter leaves
+          // the book's place (AudiobookProgressService).
+          if (i + 1 < tracks.length)
+            'audiobookNextId': trackMediaId(book.id, tracks[i + 1].index),
           'absStartOffsetSec': thisStart,
           'album': {'name': book.title, 'id': book.id},
           'artists': [

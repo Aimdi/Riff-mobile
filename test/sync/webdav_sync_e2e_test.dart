@@ -22,6 +22,8 @@ void main() {
     'PodcastPlayed',
     'PodcastBookmarks',
     'PodcastManualSegments',
+    // Open, as at launch: a collection whose box isn't waits.
+    'PodcastStarred',
     'LibraryPlaylists',
     'LIBFAV',
     'LIB1',
@@ -192,6 +194,20 @@ void main() {
     expect(Hive.box('LIBFAV').keys, unorderedEquals(['s8', 's9']));
     expect(dav.files['/dav/Riff/podcasts/subscriptions.opml'],
         contains('riff:tombstone xmlUrl="https://two.example/feed"'));
+  });
+
+  // Riff still starting, the shows not read yet: synced then, they read
+  // as none and every show was sent as unfollowed (a tombstone each).
+  test("shows not read yet aren't sent as unfollowed", () async {
+    await newDevice('aaaa');
+    await Hive.box('PodcastSubs').put('https://one.example/feed',
+        {'title': 'One', 'feedUrl': 'https://one.example/feed'});
+    expect((await WebDavSyncService.syncNow()).ok, isTrue);
+    await Hive.box('PodcastSubs').close();
+    expect((await WebDavSyncService.syncNow()).ok, isTrue);
+    final opml = dav.files['/dav/Riff/podcasts/subscriptions.opml']!;
+    expect(opml, isNot(contains('tombstone')));
+    expect(opml, contains('<outline'));
   });
 
   test('a newer format on the server is left alone', () async {

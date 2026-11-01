@@ -71,6 +71,9 @@ void main() {
 
   test('the Inbox as the app lists it: no played or archived episodes',
       () async {
+    // The show is followed (a show unfollowed since leaves the list).
+    await Hive.box('PodcastSubs').put('https://a.example/feed',
+        {'feedUrl': 'https://a.example/feed', 'title': 'Show'});
     PodcastInboxCounts.setInbox(
         [_ep('new'), _ep('played'), _ep('kept'), _ep('old')]);
     await Hive.box('PodcastPlayed').put('played', 1);

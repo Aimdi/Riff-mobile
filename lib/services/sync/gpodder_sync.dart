@@ -477,8 +477,17 @@ class GpodderSync {
 
   static Future<GpodderOutcome> _sync() async {
     if (!configured) return const GpodderOutcome(error: GpodderError.auth);
-    // Riff still starting (its podcast boxes not open yet): next time.
-    if (!Hive.isBoxOpen('PodcastSubs')) return const GpodderOutcome();
+    // Riff still starting (its podcast boxes not open yet): next time. All
+    // of them: a sync with only some open applied nothing but moved its
+    // marks on, and those changes were lost both ways.
+    if (!const [
+      'PodcastSubs',
+      'PodcastPlayed',
+      'PodcastProgress',
+      'PodcastHistory'
+    ].every(Hive.isBoxOpen)) {
+      return const GpodderOutcome();
+    }
     final started = clock();
     _lastAttemptMs = started.millisecondsSinceEpoch;
     syncing.value = true;

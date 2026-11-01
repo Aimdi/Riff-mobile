@@ -34,11 +34,34 @@ class AudiobookProgressService {
   static String? bookIdOf(MediaItem item) {
     final fromExtras = item.extras?['absItemId'] ?? item.extras?['audiobookId'];
     if (fromExtras is String && fromExtras.isNotEmpty) return fromExtras;
-    if (!item.id.startsWith('abs_')) return null;
-    final rest = item.id.substring(4);
+    final prefix = item.id.startsWith('abs_')
+        ? 4
+        : item.id.startsWith('lv_')
+            ? 3
+            : -1;
+    if (prefix < 0) return null;
+    final rest = item.id.substring(prefix);
     final lastSep = rest.lastIndexOf('_');
     if (lastSep <= 0) return null;
     return rest.substring(0, lastSep);
+  }
+
+  /// The id of the chapter after [track]: the one its book listed next
+  /// (`audiobookNextId`), else for a free book the next index while it has
+  /// one. Null after the last chapter, or when that isn't known (a chapter
+  /// saved before Riff kept it).
+  static String? nextTrackIdOf(MediaItem track) {
+    final next = track.extras?['audiobookNextId'];
+    if (next is String && next.isNotEmpty) return next;
+    final index = track.extras?['audiobookTrackIndex'];
+    final count = track.extras?['audiobookTrackCount'];
+    if (!track.id.startsWith('lv_') || index is! int || count is! int) {
+      return null;
+    }
+    if (index + 1 >= count) return null;
+    final sep = track.id.lastIndexOf('_');
+    if (sep <= 3 || track.id.substring(sep + 1) != '$index') return null;
+    return '${track.id.substring(0, sep + 1)}${index + 1}';
   }
 
   /// True once [posMs] is far enough into a track of [totMs] to count as
@@ -64,6 +87,7 @@ class AudiobookProgressService {
     if (totMs <= 0) return;
     if (isFinished(posMs, totMs)) {
       _box.delete(track.id);
+      _placeAfter(track, nowMs);
       return;
     }
     if (isTooEarly(posMs)) return;
@@ -80,6 +104,37 @@ class AudiobookProgressService {
       'trackCount': track.extras?['audiobookTrackCount'],
       'positionMs': posMs,
       'durationMs': totMs,
+      'updatedAt': nowMs,
+    });
+  }
+
+  /// A chapter heard to its end leaves the book's place at the start of
+  /// the next one. Dropping the record alone left the book with none when
+  /// it stopped there (sleep timer at the end of a chapter) or in the next
+  /// chapter's first seconds, and Play started it over at chapter 1. A
+  /// place already kept in the next chapter stays, now the latest. Nothing
+  /// after the last chapter: the book is done.
+  static void _placeAfter(MediaItem track, int nowMs) {
+    final next = nextTrackIdOf(track);
+    final bookId = bookIdOf(track);
+    if (next == null || bookId == null) return;
+    final kept = _box.get(next);
+    if (kept is Map) {
+      _box.put(next, {...Map<String, dynamic>.from(kept), 'updatedAt': nowMs});
+      return;
+    }
+    final index =
+        track.extras?['absTrackIndex'] ?? track.extras?['audiobookTrackIndex'];
+    _box.put(next, {
+      'id': next,
+      'bookId': bookId,
+      'title': track.album,
+      'album': track.album,
+      'artist': track.artist,
+      'artUri': track.artUri?.toString(),
+      'trackIndex': index is int ? index + 1 : null,
+      'trackCount': track.extras?['audiobookTrackCount'],
+      'positionMs': 0,
       'updatedAt': nowMs,
     });
   }

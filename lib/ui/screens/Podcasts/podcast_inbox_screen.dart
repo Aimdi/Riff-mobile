@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 import '/services/podcast_bookmarks.dart';
 import '/ui/theme/riff_spacing.dart';
@@ -76,9 +77,33 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
   /// Refreshing behind what's on screen (thin bar at the top).
   bool _refreshing = false;
 
+  /// Episodes marked played elsewhere (the player, the car, a show's page,
+  /// played to the end) leave the list as they are.
+  StreamSubscription<BoxEvent>? _played;
+  bool _refilterDue = false;
+
+  void _refilter() {
+    if (_refilterDue) return;
+    _refilterDue = true;
+    // Mark all as listened marks many at once: one pass for them all.
+    scheduleMicrotask(() {
+      _refilterDue = false;
+      if (mounted) setState(() => _episodes = _unplayed(_merged));
+    });
+  }
+
+  @override
+  void dispose() {
+    _played?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    if (Hive.isBoxOpen('PodcastPlayed')) {
+      _played = Hive.box('PodcastPlayed').watch().listen((_) => _refilter());
+    }
     // Cache first: whatever Inbox we have renders on the first frame (the
     // shimmer only shows the very first time). A stale one refreshes
     // behind it.
@@ -158,10 +183,18 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     // Two subscription sources: YouTube-Music library shows and iTunes/RSS
     // subscriptions (from Discover / categories). Merge both into the inbox.
     final lib = Get.find<LibraryPodcastsController>();
+    try {
+      await lib.libLoaded;
+    } catch (_) {
+      // The list couldn't be read: the RSS shows still come in.
+    }
+    if (gen != _loadGen) return;
     final ytSubs = lib.libraryPodcasts.toList();
     final rssSubs = PodcastService.subscriptions;
     if (ytSubs.isEmpty && rssSubs.isEmpty) {
-      // Nothing followed any more: don't keep the old shows' episodes.
+      // Nothing followed any more: don't keep the old shows' episodes
+      // (Home's New episodes and the car read them too).
+      PodcastInboxCounts.setInbox(const []);
       if (mounted) {
         setState(() {
           _loading = false;

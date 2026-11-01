@@ -112,10 +112,15 @@ class LibraryPodcastsController extends GetxController {
     unawaited(PodcastQueueDownloads.run());
   }
 
+  /// The followed YouTube Music shows' first read from the phone; the
+  /// Inbox waits for it (else its first build had only the RSS shows).
+  Future<void> libLoaded = Future.value();
+
   @override
   void onInit() {
     super.onInit();
-    refreshLib().then((_) => PodcastService.refreshMissingArtwork());
+    libLoaded = refreshLib();
+    libLoaded.then((_) => PodcastService.refreshMissingArtwork());
     loadDiscovery();
     loadYoutubePodcasts();
   }

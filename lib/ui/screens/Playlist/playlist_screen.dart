@@ -737,7 +737,7 @@ Widget _actions(
             )),
       Obx(() => CollectionDownloadButton(
             id: c.playlist.value.playlistId,
-            songs: () => c.songList.toList(),
+            songs: () => c.allSongs.toList(),
             isDownloaded: c.isDownloaded.isTrue,
             tooltip: "downloadPlaylist".tr,
           )),

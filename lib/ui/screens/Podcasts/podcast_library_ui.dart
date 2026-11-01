@@ -254,27 +254,38 @@ Future<void> showPodcastShowLibrarySheet(BuildContext context,
 /// Show page ⋮ › Mark all as listened, with Undo.
 void markShowListened(BuildContext context, List<MediaItem> episodes,
     {VoidCallback? onChanged}) {
-  final snap = PodcastLibrary.markAllListened(episodes);
+  // Downloads the show deletes once played go when Undo is no longer
+  // offered: deleted at once, Undo brought the episodes back without them.
+  final snap = PodcastLibrary.markAllListened(episodes, sweep: false);
   onChanged?.call();
   final messenger = ScaffoldMessenger.maybeOf(context);
-  if (messenger == null) return;
+  if (messenger == null) {
+    PodcastLibrary.sweepDownloads();
+    return;
+  }
+  messenger.hideCurrentSnackBar();
   messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(snap.count == 0
-          ? 'nothingToMark'.tr
-          : 'markedAllListened'.trParams({'count': '${snap.count}'})),
-      action: snap.count == 0
-          ? null
-          : SnackBarAction(
-              label: 'undo'.tr,
-              onPressed: () async {
-                await PodcastLibrary.undoMarkAll(snap);
-                onChanged?.call();
-              },
-            ),
-    ));
+      .showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(snap.count == 0
+            ? 'nothingToMark'.tr
+            : 'markedAllListened'.trParams({'count': '${snap.count}'})),
+        action: snap.count == 0
+            ? null
+            : SnackBarAction(
+                label: 'undo'.tr,
+                onPressed: () async {
+                  await PodcastLibrary.undoMarkAll(snap);
+                  onChanged?.call();
+                },
+              ),
+      ))
+      .closed
+      .then((reason) {
+    if (reason != SnackBarClosedReason.action) {
+      PodcastLibrary.sweepDownloads();
+    }
+  });
 }
 
 // ── OPML ──────────────────────────────────────────────────────────────

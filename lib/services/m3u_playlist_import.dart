@@ -320,14 +320,14 @@ String playlistM3u(String name, Iterable<MediaItem> songs) {
 
 /// Where [song] plays from, as another app can open it.
 String _location(MediaItem song) {
+  // A song on the phone first: `device_1234` is 11 characters too, and
+  // went out as a YouTube Music link.
+  final url = song.extras?['url'];
+  if (song.id.startsWith(DeviceMusic.idPrefix)) {
+    return url is String && url.isNotEmpty ? url : song.id;
+  }
   if (_videoId.hasMatch(song.id)) {
     return 'https://music.youtube.com/watch?v=${song.id}';
-  }
-  final url = song.extras?['url'];
-  if (song.id.startsWith(DeviceMusic.idPrefix) &&
-      url is String &&
-      url.isNotEmpty) {
-    return url;
   }
   return song.id;
 }

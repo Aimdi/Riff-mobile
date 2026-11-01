@@ -113,6 +113,18 @@ void main() {
     expect(queue.queue.map((e) => e.id), ['e2']);
   });
 
+  // Marked played elsewhere (the player, the car, played out): the Inbox
+  // used to keep showing it until it was rebuilt.
+  testWidgets('an episode marked played elsewhere leaves the list',
+      (tester) async {
+    await pumpInbox(tester);
+    expect(find.text('Episode One'), findsOneWidget);
+    await tester.runAsync(() async => PodcastProgressService.markPlayed('e1'));
+    await tester.pump();
+    expect(find.text('Episode One'), findsNothing);
+    expect(find.text('Episode Two'), findsOneWidget);
+  });
+
   test("a swipe's mark played leaves the download for Undo", () async {
     await Hive.box(PodcastLibrary.showBox)
         .put(_feed, {'autoDelete': AutoDeletePolicy.immediately.name});

@@ -34,8 +34,7 @@ int resolveShuffledQueueIndex({
   return queueIds.indexWhere((id) => id == shuffledId);
 }
 
-bool isValidQueueIndex(int index, int length) =>
-    index >= 0 && index < length;
+bool isValidQueueIndex(int index, int length) => index >= 0 && index < length;
 
 /// A playByIndex whose song is no longer the queue's current item (the
 /// queue was replaced under it) must only drop the loading spinner.
@@ -84,6 +83,16 @@ bool shouldArmEofAdvance({
   required String? currentId,
   required String? lastArmedId,
 }) =>
-    currentId != null &&
-    currentId.isNotEmpty &&
-    currentId != lastArmedId;
+    currentId != null && currentId.isNotEmpty && currentId != lastArmedId;
+
+/// [order] (a shuffle round) with [nextId] right after [currentId]: moved
+/// there when it's already in the round, added when not. Play next under
+/// shuffle: the queue's order alone doesn't say what plays next.
+List<String> shuffleOrderWithNext(
+    List<String> order, String currentId, String nextId) {
+  if (nextId == currentId) return order;
+  final out = [...order]..remove(nextId);
+  final at = out.indexOf(currentId);
+  out.insert(at < 0 ? 0 : at + 1, nextId);
+  return out;
+}

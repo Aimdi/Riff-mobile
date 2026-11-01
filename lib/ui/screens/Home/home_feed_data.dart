@@ -406,8 +406,9 @@ const homeRecentCollectionsMax = 12;
 HomeShelfData? recentCollectionsShelf() {
   final items = <HomeItem>[];
   for (final r in CollectionRecents.recent()) {
-    // The Recently played list is songs, not somewhere you played from.
-    if (r.id == 'LIBRP') continue;
+    // The Recently played list is songs, not somewhere you played from;
+    // your mixes have their own shelf.
+    if (r.id == 'LIBRP' || r.id.startsWith('RIFF_')) continue;
     final item = _recentCollectionItem(r);
     if (item == null) continue;
     items.add(item);
@@ -433,7 +434,9 @@ HomeItem? _recentCollectionItem(RecentCollection r) {
   }
   final album = _saved('LibraryAlbums', r.id);
   if (album != null) return homeAlbumItem(Album.fromJson(album));
-  if (r.name.isEmpty) return null;
+  // One of your own playlists that's no longer there (deleted): it would
+  // open onto YouTube Music, which has no such playlist.
+  if (r.name.isEmpty || r.id.startsWith('LIB')) return null;
   return switch (r.type) {
     'album' => homeAlbumItem(Album(
         title: r.name,
@@ -446,6 +449,7 @@ HomeItem? _recentCollectionItem(RecentCollection r) {
         title: r.name,
         playlistId: r.id,
         description: r.by,
+        isPipedPlaylist: r.piped,
         thumbnailUrl: r.art ?? Playlist.thumbPlaceholderUrl)),
     _ => null,
   };

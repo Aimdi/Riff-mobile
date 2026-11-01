@@ -359,14 +359,25 @@ class SettingsScreenController extends GetxController {
 
   Future<void> setLyricsSource(dynamic val) async {
     if (val is! LyricsSource) return;
+    // The same one picked again: nothing to look up anew.
+    if (val == lyricsSource.value) return;
     setBox.put('lyricsSource', LyricsSource.values.indexOf(val));
     lyricsSource.value = val;
-    // Drop cached lyrics so the next open uses the new provider order.
+    // Drop cached lyrics so the next open uses the new provider order;
+    // not the lyrics you picked yourself, nor those kept for downloads to
+    // show offline (they were all wiped).
     try {
       final box = Hive.isBoxOpen('lyrics')
           ? Hive.box('lyrics')
           : await Hive.openBox('lyrics');
-      await box.clear();
+      final downloads =
+          Hive.isBoxOpen('SongDownloads') ? Hive.box('SongDownloads') : null;
+      await box.deleteAll([
+        for (final key in box.keys)
+          if (lyricsCacheDroppable('$key', box.get(key),
+              downloaded: (id) => downloads?.containsKey(id) ?? false))
+            key
+      ]);
     } catch (_) {}
     if (Get.isRegistered<PlayerController>()) {
       final player = Get.find<PlayerController>();
@@ -754,7 +765,13 @@ class SettingsScreenController extends GetxController {
 
   Future<bool> resetAppSettingsToDefault() async {
     try {
-      await setBox.clear();
+      // Settings only: your servers and accounts, per-song lyrics timing
+      // and what's still to do (podcast files to delete) stay. Clearing it
+      // all signed you out of every server.
+      await setBox.deleteAll([
+        for (final key in setBox.keys)
+          if (resetsWithSettings('$key')) key
+      ]);
       return true;
     } catch (_) {
       return false;
@@ -799,3 +816,45 @@ class SettingsScreenController extends GetxController {
     }
   }
 }
+
+/// Whether a cached lyrics entry ([key], [value]) goes when the lyrics
+/// source changes: not one you picked (Search lyrics), nor plain lyrics or
+/// lyrics kept for a downloaded song.
+bool lyricsCacheDroppable(String key, Object? value,
+    {required bool Function(String id) downloaded}) {
+  if (key.startsWith('plain:')) return false;
+  if (value is Map && value['chosen'] == true) return false;
+  return !downloaded(key);
+}
+
+/// Whether the AppPrefs entry [key] is a setting, put back to its default
+/// by Reset to default. AppPrefs also keeps your servers and accounts,
+/// listening stats, pins, covers, folders, recent searches and work still
+/// to do; clearing it all signed you out and lost them.
+bool resetsWithSettings(String key) => settingsResetKeys.contains(key);
+
+const settingsResetKeys = {
+  // Settings screen.
+  'autoDownloadFavoriteSongEnabled', 'autoOpenPlayer',
+  'backgroundPlayEnabled', 'bassBoost', 'cacheHomeScreenData', 'cacheSongs',
+  'currentAppLanguageCode', 'dataSaver', 'developerMode',
+  'discoverContentType', 'downloadLocationPath', 'downloadingFormat',
+  'exportLocationPath', 'hideShorts', 'hideVideoSongs',
+  'isBottomNavBarEnabled', 'isTransitionAnimationDisabled',
+  'keepScreenAwake', 'loudnessNormalizationEnabled', 'lyricsSource',
+  'noOfHomeScreenContent', 'pauseOnHeadsetDisconnect', 'playbackPitch',
+  'playbackSpeed', 'playerCanvas', 'playerUi', 'podcastAutoSkipAds',
+  'podcastContinuousPlayback', 'podcastsInWizeStream',
+  'restrorePlaybackSession', 'resumeOnBluetooth', 'resumeOnHeadphones',
+  'reverbPreset', 'skipSilenceEnabled', 'slidableActionEnabled',
+  'smartQueueInjection', 'songsCacheMaxBytes', 'sponsorBlockEnabled',
+  'sponsorBlockCategories', 'stopPlyabackOnSwipeAway', 'streamingQuality',
+  'themeModeType', 'themePrimaryColor', 'videoEngine', 'videoQuality',
+  'virtualizer', 'volumeBoostMb', 'youtubePodcasts',
+  // Elsewhere in Settings and the player.
+  'allowExplicit', 'downloadOnWifiOnly', 'downloadQuality', 'musicAutoplay',
+  'normalizationLevel', 'lyricsMode', 'lyricsTextSize', 'romanizeLyrics',
+  'translateLyrics', 'autoSleepTimer', 'autoSleepTimerFrom',
+  'autoSleepTimerTo', 'eqEnabled', 'eqLevelsMb', 'eqPreset',
+  'playerShowVideo', 'podcastPlaybackDefaults', 'podcastSegmentActions',
+};
