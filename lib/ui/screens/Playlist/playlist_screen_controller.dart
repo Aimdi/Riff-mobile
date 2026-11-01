@@ -28,6 +28,7 @@ import '../../../services/music_service.dart';
 import '../../../services/piped_service.dart';
 import '../../../services/m3u_playlist_import.dart';
 import '../../../services/server_login.dart';
+import '../../../services/collection_recents.dart';
 import '../../../services/playlist_covers.dart';
 import '../../../services/playlist_mix_service.dart';
 import '../../../services/track_analysis_service.dart';
@@ -433,6 +434,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
         if (res.code == 1) {
           await LibraryPins.forget(content.playlistId);
           await PlaylistFolders.forget(content.playlistId);
+          await CollectionRecents.forget(content.playlistId);
         }
         Get.find<LibraryPlaylistsController>().syncPipedPlaylist();
         return (res.code == 1);
@@ -447,6 +449,9 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
           await LibraryPins.forget(id);
           await PlaylistFolders.forget(id);
           await PlaylistCovers.remove(id);
+          // Deleted, not just out of the Library: off Home's Recently
+          // played (a YouTube Music playlist still opens from there).
+          if (!content.isCloudPlaylist) await CollectionRecents.forget(id);
           final songsBox = await Hive.openBox(id);
           await songsBox.deleteFromDisk();
         }

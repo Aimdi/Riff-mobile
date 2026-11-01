@@ -1890,11 +1890,12 @@ class PlayerController extends GetxController
         // Its own cover, else the song it started with (Home's Recently
         // played shows it).
         art: switch (item) {
-              Album a when a.thumbnailUrl.isNotEmpty => a.thumbnailUrl,
-              Playlist p when p.hasArt => p.thumbnailUrl,
-              _ => null,
-            } ??
-            mediaItems[index].artUri?.toString(),
+          Album a when a.thumbnailUrl.isNotEmpty => a.thumbnailUrl,
+          Playlist p when p.hasArt => p.thumbnailUrl,
+          _ => null,
+        },
+        fallbackArt: mediaItems[index].artUri?.toString(),
+        piped: item is Playlist && item.isPipedPlaylist,
         by: switch (item) {
           Album a => a.artists
               ?.map((x) => '${x['name'] ?? ''}')

@@ -96,4 +96,69 @@ void main() {
     expect(shelf.items.length, homeRecentCollectionsMax);
     expect(shelf.items.first.key, 'playlist:PL19');
   });
+
+  test('your mixes stay on their own shelf, not here as well', () async {
+    await played('RIFF_daily_1', 1, type: 'playlist', name: 'Daily Mix 1');
+    await played('PLchill', 2, type: 'playlist', name: 'Chill evening');
+    await played('MPREb_coast', 3, type: 'album', name: 'Coastlines');
+    expect(recentCollectionsShelf()!.items.map((i) => i.key),
+        ['album:MPREb_coast', 'playlist:PLchill']);
+  });
+
+  test('one of your playlists, deleted, is gone from here', () async {
+    await Hive.box('LibraryPlaylists').put('LIB1699', {
+      'title': 'Road trip',
+      'playlistId': 'LIB1699',
+      'isCloudPlaylist': false,
+    });
+    await played('LIB1699', 1, type: 'playlist', name: 'Road trip');
+    await played('PLchill', 2, type: 'playlist', name: 'Chill evening');
+    await played('MPREb_coast', 3, type: 'album', name: 'Coastlines');
+    expect(recentCollectionsShelf()!.items.length, 3);
+    // Deleted before Riff forgot deleted playlists: no longer in the
+    // Library, so not rebuilt as a YouTube Music playlist that isn't there.
+    await Hive.box('LibraryPlaylists').delete('LIB1699');
+    expect(recentCollectionsShelf()!.items.map((i) => i.key),
+        ['album:MPREb_coast', 'playlist:PLchill']);
+    // And forgotten when deleted now.
+    await CollectionRecents.forget('PLchill');
+    expect(CollectionRecents.recent().map((r) => r.id),
+        ['MPREb_coast', 'LIB1699']);
+  });
+
+  test('played again from where little is known: its cover and artist stay',
+      () async {
+    await played('MPREb_coast', 1,
+        type: 'album',
+        name: 'Coastlines',
+        art: 'https://example.com/coast.jpg',
+        by: 'Nova Hart');
+    // A Speed dial pin or Home's long press: no artist, and the first
+    // song's art only as a stand-in.
+    await CollectionRecents.markPlayed('MPREb_coast',
+        type: 'album',
+        name: 'Coastlines',
+        fallbackArt: 'https://example.com/song.jpg');
+    final coast = CollectionRecents.recent().single;
+    expect(coast.art, 'https://example.com/coast.jpg');
+    expect(coast.by, 'Nova Hart');
+    // With no cover known, the song's art stands in.
+    await CollectionRecents.markPlayed('PLnew',
+        type: 'playlist',
+        name: 'New',
+        fallbackArt: 'https://example.com/song.jpg');
+    expect(
+        CollectionRecents.recent().first.art, 'https://example.com/song.jpg');
+  });
+
+  test('a Piped playlist opens as one', () async {
+    await CollectionRecents.markPlayed('3f2a-piped',
+        type: 'playlist', name: 'From Piped', piped: true);
+    await played('PLchill', 2, type: 'playlist', name: 'Chill evening');
+    final piped = recentCollectionsShelf()!
+        .items
+        .firstWhere((i) => i.key == 'playlist:3f2a-piped')
+        .value as Playlist;
+    expect(piped.isPipedPlaylist, isTrue);
+  });
 }

@@ -61,6 +61,20 @@ Future<List<MediaItem>> _loadCollectionPlayTracks({
 }) async {
   if (id.isEmpty) return const [];
 
+  // What the Library knows of it, for callers that don't (Home's long
+  // press, Speed dial pins): your own playlists and mixes play from the
+  // phone, a saved album or playlist from its saved songs first. Asked of
+  // YouTube Music, your own playlists came back empty ("Operation failed").
+  final saved =
+      _librarySaved(isAlbum ? 'LibraryAlbums' : 'LibraryPlaylists', id);
+  if (saved != null) {
+    isLibraryItem = true;
+    if (!isAlbum) {
+      isPipedPlaylist = isPipedPlaylist || saved['isPipedPlaylist'] == true;
+      isCloudPlaylist = isCloudPlaylist && saved['isCloudPlaylist'] != false;
+    }
+  }
+
   if (isAlbum) {
     if (isLibraryItem) {
       final local = await tracksFromOpenBox(id);
@@ -92,6 +106,12 @@ Future<List<MediaItem>> _loadCollectionPlayTracks({
   final result =
       await Get.find<MusicServices>().getPlaylistOrAlbumSongs(playlistId: id);
   return List<MediaItem>.from(result['tracks'] ?? const []);
+}
+
+Map? _librarySaved(String box, String id) {
+  if (!Hive.isBoxOpen(box)) return null;
+  final v = Hive.box(box).get(id);
+  return v is Map ? v : null;
 }
 
 Future<List<MediaItem>> tracksFromOpenBox(String id) async {

@@ -158,10 +158,18 @@ class _PodcastInboxScreenState extends State<PodcastInboxScreen> {
     // Two subscription sources: YouTube-Music library shows and iTunes/RSS
     // subscriptions (from Discover / categories). Merge both into the inbox.
     final lib = Get.find<LibraryPodcastsController>();
+    try {
+      await lib.libLoaded;
+    } catch (_) {
+      // The list couldn't be read: the RSS shows still come in.
+    }
+    if (gen != _loadGen) return;
     final ytSubs = lib.libraryPodcasts.toList();
     final rssSubs = PodcastService.subscriptions;
     if (ytSubs.isEmpty && rssSubs.isEmpty) {
-      // Nothing followed any more: don't keep the old shows' episodes.
+      // Nothing followed any more: don't keep the old shows' episodes
+      // (Home's New episodes and the car read them too).
+      PodcastInboxCounts.setInbox(const []);
       if (mounted) {
         setState(() {
           _loading = false;

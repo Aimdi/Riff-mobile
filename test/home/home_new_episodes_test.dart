@@ -58,6 +58,26 @@ void main() {
     expect(_newEpisodes(), isNull);
   });
 
+  test("a show you've unfollowed: its episodes are gone from here", () async {
+    final subs = await Hive.openBox('PodcastSubs', bytes: Uint8List(0));
+    await Hive.openBox('LibraryPodcasts', bytes: Uint8List(0));
+    final yt = MediaItem(
+        id: 'y1',
+        title: 'Episode y1',
+        artUri: Uri.parse('https://example.com/y1.jpg'),
+        extras: const {'isPodcast': true, 'podcastPlaylistId': 'MPSPPLshow'});
+    PodcastInboxCounts.setInbox([_ep('a'), yt]);
+    // The Inbox saved on the phone is the one last built: followed then,
+    // not now.
+    expect(_newEpisodes(), isNull);
+    await subs.put('https://example.com/feed',
+        {'feedUrl': 'https://example.com/feed', 'title': 'The Long Way Round'});
+    await Hive.box('LibraryPodcasts')
+        .put('MPSPPLshow', {'playlistId': 'MPSPPLshow', 'title': 'A show'});
+    expect(_newEpisodes()!.items.map((i) => i.key),
+        [homeSongKey('a'), homeSongKey('y1')]);
+  });
+
   test('an episode you started stays in Jump back in only', () {
     PodcastInboxCounts.setInbox([_ep('a'), _ep('c')]);
     final sections = buildHomeSections(HomeFeedInput(
