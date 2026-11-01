@@ -820,7 +820,9 @@ class AudiobookshelfService extends GetxService {
   List<MediaItem> toMediaItems(AbsBookDetail book) {
     final cover = coverUrl(book.id);
     var startOffset = 0.0;
-    return book.tracks.map((t) {
+    final tracks = book.tracks;
+    return tracks.indexed.map((e) {
+      final (i, t) = e;
       final id = trackMediaId(book.id, t.index);
       final url = streamUrl(t.contentUrl);
       final thisStart = startOffset;
@@ -840,6 +842,10 @@ class AudiobookshelfService extends GetxService {
           'absItemId': book.id,
           'absSessionId': book.sessionId,
           'absTrackIndex': t.index,
+          // The chapter after this one, where a finished chapter leaves
+          // the book's place (AudiobookProgressService).
+          if (i + 1 < tracks.length)
+            'audiobookNextId': trackMediaId(book.id, tracks[i + 1].index),
           'absStartOffsetSec': thisStart,
           'album': {'name': book.title, 'id': book.id},
           'artists': [

@@ -77,6 +77,16 @@ class MediaItemBuilder {
             'absTrackIndex': json['absTrackIndex'],
           if (json['absStartOffsetSec'] != null)
             'absStartOffsetSec': json['absStartOffsetSec'],
+          // A free (LibriVox) chapter's book, place in it, and the chapter
+          // after; without them a restored chapter's position was kept
+          // under no book, and the book resumed at an older place.
+          if (json['audiobookId'] != null) 'audiobookId': json['audiobookId'],
+          if (json['audiobookTrackIndex'] != null)
+            'audiobookTrackIndex': json['audiobookTrackIndex'],
+          if (json['audiobookTrackCount'] != null)
+            'audiobookTrackCount': json['audiobookTrackCount'],
+          if (json['audiobookNextId'] != null)
+            'audiobookNextId': json['audiobookNextId'],
           if (json['discoveryReason'] != null)
             'discoveryReason': json['discoveryReason'],
           if (json['discoverySource'] != null)
@@ -224,6 +234,13 @@ class MediaItemBuilder {
           'absTrackIndex': mediaItem.extras?['absTrackIndex'],
         if (mediaItem.extras?['absStartOffsetSec'] != null)
           'absStartOffsetSec': mediaItem.extras?['absStartOffsetSec'],
+        for (final key in const [
+          'audiobookId',
+          'audiobookTrackIndex',
+          'audiobookTrackCount',
+          'audiobookNextId',
+        ])
+          if (mediaItem.extras?[key] != null) key: mediaItem.extras?[key],
         'pubDateMs': mediaItem.extras?['pubDateMs'],
         'discoveryReason': mediaItem.extras?['discoveryReason'],
         'discoverySource': mediaItem.extras?['discoverySource'],

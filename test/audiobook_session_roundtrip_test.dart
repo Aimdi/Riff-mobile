@@ -124,7 +124,37 @@ void main() {
       }
       final restored = MediaItemBuilder.fromJson(json);
       expect(restored.extras!.containsKey('absItemId'), isFalse);
+      expect(restored.extras!.containsKey('audiobookId'), isFalse);
       expect(AudiobookProgressService.isAudiobookItem(restored), isFalse);
     });
+  });
+
+  // A free book's chapter restored with the last session kept its position
+  // under no book (bookId null): the book's page and Continue listening
+  // went on showing an older place.
+  test("a free book's chapter keeps its book and place through a restore", () {
+    const chapter = MediaItem(
+      id: 'lv_moby_3',
+      title: 'Chapter 4',
+      album: 'Moby Dick',
+      extras: {
+        'url': 'https://archive.org/moby_04.mp3',
+        'streamSource': 'librivox',
+        'audiobookId': 'moby',
+        'audiobookTrackIndex': 3,
+        'audiobookTrackCount': 10,
+        'audiobookNextId': 'lv_moby_4',
+        'album': {'name': 'Moby Dick', 'id': 'moby'},
+        'artists': [
+          {'name': 'Herman Melville', 'id': null}
+        ],
+      },
+    );
+    final restored = MediaItemBuilder.fromJson(
+        jsonDecode(jsonEncode(MediaItemBuilder.toJson(chapter))));
+    expect(AudiobookProgressService.bookIdOf(restored), 'moby');
+    expect(restored.extras!['audiobookTrackIndex'], 3);
+    expect(restored.extras!['audiobookTrackCount'], 10);
+    expect(AudiobookProgressService.nextTrackIdOf(restored), 'lv_moby_4');
   });
 }

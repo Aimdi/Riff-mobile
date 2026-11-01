@@ -344,8 +344,9 @@ class FreeAudiobookService {
   static List<MediaItem> toMediaItems(FreeAudiobookDetail d) {
     final author = d.book.author.isEmpty ? 'Audiobook' : d.book.author;
     final art = Uri.tryParse(d.book.cover);
+    final chapters = d.chapters;
     return [
-      for (final c in d.chapters)
+      for (final (i, c) in chapters.indexed)
         MediaItem(
           id: '$freeAudiobookIdPrefix${d.book.id}_${c.index}',
           title: c.title,
@@ -360,7 +361,11 @@ class FreeAudiobookService {
             'streamSource': 'librivox',
             'audiobookId': d.book.id,
             'audiobookTrackIndex': c.index,
-            'audiobookTrackCount': d.chapters.length,
+            'audiobookTrackCount': chapters.length,
+            // Where a finished chapter leaves the book's place.
+            if (i + 1 < chapters.length)
+              'audiobookNextId':
+                  '$freeAudiobookIdPrefix${d.book.id}_${chapters[i + 1].index}',
             'album': {'name': d.book.title, 'id': d.book.id},
             'artists': [
               {'name': author, 'id': null}
