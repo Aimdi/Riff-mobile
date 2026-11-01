@@ -190,7 +190,7 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(album.value.browseId);
     await songsBox.clear();
-    final songListCopy = songList.toList();
+    final songListCopy = allSongs.toList();
     for (int i = 0; i < songListCopy.length; i++) {
       await songsBox.put(i, MediaItemBuilder.toJson(songListCopy[i]));
     }

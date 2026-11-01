@@ -428,7 +428,7 @@ class AlbumScreen extends StatelessWidget {
             )),
         Obx(() => CollectionDownloadButton(
               id: albumController.album.value.browseId,
-              songs: () => albumController.songList.toList(),
+              songs: () => albumController.allSongs.toList(),
               isDownloaded: albumController.isDownloaded.isTrue,
               tooltip: "downloadAlbumSongs".tr,
             )),

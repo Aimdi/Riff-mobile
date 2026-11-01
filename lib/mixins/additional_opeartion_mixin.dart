@@ -14,6 +14,12 @@ mixin AdditionalOpeartionMixin on PlaylistAlbumScreenControllerBase {
   final isSearchingOn = false.obs;
   List<MediaItem> tempListContainer = <MediaItem>[];
 
+  /// Every song, also while the in-page search shows only some: what Save,
+  /// Download and Smart order act on. Acting on the matches saved only
+  /// them (the rest of a playlist deleted) and downloaded only them.
+  List<MediaItem> get allSongs =>
+      isSearchingOn.isTrue ? tempListContainer : songList;
+
   void onSort(SortType sortType, bool isAscending) {
     final songlist_ = songList.toList();
     sortSongsNVideos(songlist_, sortType, isAscending);

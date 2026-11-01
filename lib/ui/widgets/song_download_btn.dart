@@ -105,7 +105,12 @@ class SongDownloadButton extends StatelessWidget {
                             (Hive.openBox("SongsCache").then((box) {
                               if (box.containsKey(song.id)) {
                                 if (!context.mounted) return;
-                                Navigator.of(context).pop();
+                                // The song's sheet closes; in the mini
+                                // player there's nothing to close (it
+                                // took the whole app away).
+                                if (!calledFromPlayer) {
+                                  Navigator.of(context).maybePop();
+                                }
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     snackbar(
                                         context, "songAlreadyOfflineAlert".tr,

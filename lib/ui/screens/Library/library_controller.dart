@@ -275,7 +275,9 @@ class LibrarySongsController extends GetxController {
       librarySongsList.remove(item);
       String filePath = "";
       if (isDownloaded) {
-        filePath = '${item.extras?['url'] ?? url ?? ''}';
+        // The download's own path first: a song liked from the player
+        // keeps its stream address in the row, which left the file on disk.
+        filePath = '${url ?? item.extras?['url'] ?? ''}';
       } else {
         final cacheDir = (await getTemporaryDirectory()).path;
         filePath = "$cacheDir/cachedSongs/${item.id}.mp3";

@@ -197,10 +197,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
 
   /// Reorder tracks for smoother Mix flow (BPM + Camelot greedy path).
   Future<bool> smartOrderForMix() async {
-    if (songList.length < 2) return false;
+    if (allSongs.length < 2) return false;
     try {
     final analyses = Map<String, TrackAnalysis>.from(mixAnalyses);
-    final remaining = songList.toList();
+    final remaining = allSongs.toList();
     final ordered = <MediaItem>[];
 
     // Start with a mid-tempo track when possible.
@@ -236,7 +236,12 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       ordered.add(remaining.removeAt(bestIdx));
     }
 
-    songList.value = ordered;
+    if (isSearchingOn.isTrue) {
+      // The whole playlist is ordered; the search still shows its matches.
+      tempListContainer = ordered;
+    } else {
+      songList.value = ordered;
+    }
     if (!playlist.value.isCloudPlaylist &&
         playlist.value.playlistId != 'LIBRP' &&
         playlist.value.playlistId != 'SongDownloads' &&
@@ -468,7 +473,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   @override
   Future<void> updateSongsIntoDb() async {
     final songsBox = await Hive.openBox(playlist.value.playlistId);
-    final songListCopy = songList.toList();
+    final songListCopy = allSongs.toList();
     if (playlist.value.playlistId == HiveBoxes.libFav) {
       // Kept by song id, not position (the hearts look them up by id).
       await HiveBoxes.writeFavorites(
