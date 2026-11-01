@@ -147,8 +147,8 @@ void main() {
         type: 'playlist',
         name: 'New',
         fallbackArt: 'https://example.com/song.jpg');
-    expect(
-        CollectionRecents.recent().first.art, 'https://example.com/song.jpg');
+    expect(CollectionRecents.recent().firstWhere((r) => r.id == 'PLnew').art,
+        'https://example.com/song.jpg');
   });
 
   test('a Piped playlist opens as one', () async {
