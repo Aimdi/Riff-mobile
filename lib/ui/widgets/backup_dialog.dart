@@ -51,7 +51,9 @@ class BackupDialog extends StatelessWidget {
                                 ? "backupInProgress".tr
                                 : c.isbackupCompleted.isTrue
                                     ? "backupMsg".tr
-                                    : "letsStrart".tr,
+                                    : c.failed.isTrue
+                                        ? "operationFailed".tr
+                                        : "letsStrart".tr,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Theme.of(context).colorScheme.onSurface),
@@ -114,6 +116,9 @@ class BackupDialogController extends GetxController {
   final isbackupCompleted = false.obs;
   final backupRunning = false.obs;
   final isDownloadedfilesSeclected = false.obs;
+
+  /// The backup couldn't be written (a folder Riff may not write to).
+  final failed = false.obs;
   List<String> filesToExport = [];
   final supportDirPath = Get.find<SettingsScreenController>().supportDirPath;
 
@@ -121,10 +126,10 @@ class BackupDialogController extends GetxController {
     final dbDir = await Get.find<SettingsScreenController>().dbDir;
     filesToExport.addAll(await processDirectoryInIsolate(dbDir));
     if (isDownloadedfilesSeclected.value) {
-      List<String> downlodedSongFilePaths = Hive.box("SongDownloads")
-          .values
-          .map<String>((data) => data['url'])
-          .toList();
+      final downlodedSongFilePaths = [
+        for (final data in Hive.box("SongDownloads").values)
+          if (data is Map && data['url'] is String) data['url'] as String
+      ];
       filesToExport.addAll(downlodedSongFilePaths);
       try {
         filesToExport.addAll(await processDirectoryInIsolate(
@@ -159,33 +164,40 @@ class BackupDialogController extends GetxController {
     backupRunning.value = true;
     final exportDirPath = pickedFolderPath.toString();
 
-    compressFilesInBackground(filesToExport,
-            '$exportDirPath/${DateTime.now().millisecondsSinceEpoch.toString()}.hmb')
-        .then((_) {
+    final backupPath =
+        '$exportDirPath/${DateTime.now().millisecondsSinceEpoch.toString()}.hmb';
+    compressFilesInBackground(filesToExport, backupPath).then((_) {
       backupRunning.value = false;
       isbackupCompleted.value = true;
     }).catchError((e) {
       printERROR('Error during compression: $e');
+      // Said, not left on "Backup in progress"; and no half-written file
+      // that a restore would later take for a backup.
+      backupRunning.value = false;
+      failed.value = true;
+      try {
+        final partial = File(backupPath);
+        if (partial.existsSync()) partial.deleteSync();
+      } catch (_) {}
     });
   }
 }
 
-// Function to convert file paths to file data (List<int>)
-List<List<int>> filePathsToFileData(List<String> filePaths) {
-  List<List<int>> filesData = [];
-
-  for (String path in filePaths) {
+/// Each file's name (without its folder) with its bytes. One that can't
+/// be read (a download deleted meanwhile) is left out, name and all: the
+/// names were kept, so every file after it was saved under the one
+/// before's name (song B's audio as song A).
+List<(String, List<int>)> filesForBackup(List<String> filePaths) {
+  final files = <(String, List<int>)>[];
+  for (final path in filePaths) {
     try {
-      // Read the file data as bytes
-      File file = File(path);
-      List<int> fileData = file.readAsBytesSync();
-      filesData.add(fileData);
+      final data = File(path).readAsBytesSync();
+      files.add((path.split(GetPlatform.isWindows ? '\\' : '/').last, data));
     } catch (e) {
       printERROR('Error reading file $path: $e');
     }
   }
-
-  return filesData;
+  return files;
 }
 
 // Function to compress files (to be used with compute or isolate)
@@ -211,11 +223,9 @@ void _compressFiles(Map<String, dynamic> params) {
 // Example usage
 Future<void> compressFilesInBackground(
     List<String> filePaths, String zipFilePath) async {
-  // Convert file paths to file data
-  final List<List<int>> filesData = filePathsToFileData(filePaths);
-  final List<String> fileNames = filePaths
-      .map((path) => path.split(GetPlatform.isWindows ? '\\' : '/').last)
-      .toList();
+  final files = filesForBackup(filePaths);
+  final List<List<int>> filesData = [for (final (_, d) in files) d];
+  final List<String> fileNames = [for (final (n, _) in files) n];
 
   printINFO(fileNames);
   // Use compute to run the compression in the background

@@ -1495,6 +1495,8 @@ class SettingsScreen extends StatelessWidget {
                       isThreeLine: true,
                       onTap: () => showDialog(
                         context: context,
+                        // A tap outside could leave it mid-restore.
+                        barrierDismissible: false,
                         builder: (context) => const RestoreDialog(),
                       ).whenComplete(
                           () => Get.delete<RestoreDialogController>()),

@@ -552,7 +552,10 @@ class PlayerController extends GetxController
     if (isSleepEndOfSongActive.isTrue) {
       final end = _playingItemEnd(oldState.total);
       timerDurationLeft.value = end.inSeconds - position.inSeconds;
-      if (_maybeStartSleepFade(end - position)) {
+      if (end <= Duration.zero) {
+        // Its length not known yet (a live stream, an episode whose feed
+        // gave none): it paused at once and the timer was gone.
+      } else if (_maybeStartSleepFade(end - position)) {
         // The fade pauses when it is done.
       } else if (timerDurationLeft.value <= 1) {
         pause(source: PlaybackCommandSource.sleepTimer);

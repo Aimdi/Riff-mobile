@@ -95,7 +95,7 @@ class LyricsWidget extends StatelessWidget {
     if (playerController.lyricsMode.toInt() == 1) {
       final plain = playerController.lyrics["plainLyrics"] == "NA"
           ? (offline ? "lyricsOffline" : "lyricsNotAvailable").tr
-          : (playerController.lyrics["plainLyrics"] ?? "").toString();
+          : plainLyricsText(playerController.lyrics);
       return Center(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -402,4 +402,14 @@ class RiffLyricUI extends UINetease {
 
   @override
   Color getLyricHightlightColor() => sweep;
+}
+
+/// The lyrics as plain text: their own, else the synced ones' lines (KuGou
+/// and some LRCLIB hits have no plain text, and Plain mode showed nothing).
+String plainLyricsText(Map lyrics) {
+  final plain = (lyrics["plainLyrics"] ?? "").toString();
+  if (plain.trim().isNotEmpty) return plain;
+  final synced = (lyrics["synced"] ?? "").toString();
+  if (synced.trim().isEmpty) return plain;
+  return [for (final line in parseLrc(synced)) line.text].join('\n');
 }
