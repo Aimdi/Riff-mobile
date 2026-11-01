@@ -732,6 +732,19 @@ class PodcastService {
   static Future<PodcastFeed> feed(
       String feedUrl, String podcastTitle, String fallbackArt,
       {int? maxItems}) async {
+    // A followed show that moved is read where it went: once its old
+    // address was taken down, the show went silent (the move was only
+    // learnt from the old feed).
+    final remembered = _rememberedMove(feedUrl);
+    if (remembered != null) {
+      try {
+        final now =
+            await _fetchFeed(remembered, podcastTitle, fallbackArt, maxItems);
+        if (now.feed.episodes.isNotEmpty) return now.feed;
+      } catch (e) {
+        printERROR("Moved feed failed ($remembered): $e");
+      }
+    }
     try {
       final old =
           await _fetchFeed(feedUrl, podcastTitle, fallbackArt, maxItems);
@@ -740,7 +753,10 @@ class PodcastService {
       try {
         final now =
             await _fetchFeed(moved, podcastTitle, fallbackArt, maxItems);
-        if (now.feed.episodes.isNotEmpty) return now.feed;
+        if (now.feed.episodes.isNotEmpty) {
+          unawaited(_rememberMove(feedUrl, moved));
+          return now.feed;
+        }
       } catch (e) {
         printERROR("Moved feed failed ($moved): $e");
       }
@@ -749,6 +765,21 @@ class PodcastService {
       printERROR("Feed parse failed ($feedUrl): $e");
       return (episodes: <Map<String, dynamic>>[], about: '');
     }
+  }
+
+  /// Where the followed show [feedUrl] said it moved to, kept with it.
+  static String? _rememberedMove(String feedUrl) {
+    if (!Hive.isBoxOpen('PodcastSubs')) return null;
+    final v = _subs.get(feedUrl);
+    final to = v is Map ? v['movedTo'] : null;
+    return to is String && to.isNotEmpty && to != feedUrl ? to : null;
+  }
+
+  static Future<void> _rememberMove(String feedUrl, String movedTo) async {
+    if (!Hive.isBoxOpen('PodcastSubs')) return;
+    final v = _subs.get(feedUrl);
+    if (v is! Map || v['movedTo'] == movedTo) return;
+    await _subs.put(feedUrl, {...v, 'movedTo': movedTo});
   }
 
   static Future<({PodcastFeed feed, String? movedTo})> _fetchFeed(String url,
@@ -947,8 +978,22 @@ class PodcastService {
             .trim()
             .toLowerCase() ==
         'serial';
-    final items = doc.findAllElements('item');
+    var items = doc.findAllElements('item').toList();
+    // Listed oldest first (some serials and generators do): read from the
+    // newest, as the rest list. Only the oldest came in (the Inbox reads
+    // the first 12), so new episodes never showed, queued or downloaded.
+    if (items.length > 1) {
+      int at(XmlElement item) =>
+          pubDateMs(item.getElement('pubDate')?.innerText.trim());
+      final first = at(items.first), last = at(items.last);
+      if (first > 0 && last > 0 && first < last) {
+        items = items.reversed.toList();
+      }
+    }
     final episodes = <Map<String, dynamic>>[];
+    // A broken feed giving several items one guid: each its own episode
+    // (they shared one played mark, place and download).
+    final seenGuids = <String>{};
     for (final item in items) {
       if (maxItems != null && episodes.length >= maxItems) break;
       final enclosure = item.findElements('enclosure').firstOrNull;
@@ -958,7 +1003,8 @@ class PodcastService {
       // An empty <guid/> must not give every such episode the same id
       // (progress, played state and downloads are keyed on it).
       final rawGuid = item.getElement('guid')?.innerText.trim() ?? '';
-      final guid = rawGuid.isNotEmpty ? rawGuid : url;
+      final firstGuid = rawGuid.isNotEmpty ? rawGuid : url;
+      final guid = seenGuids.add(firstGuid) ? firstGuid : url;
       final sizeBytes =
           int.tryParse(enclosure?.getAttribute('length') ?? '') ?? 0;
       final epArtRaw =
@@ -1716,20 +1762,20 @@ class PodcastChapter {
   final String? linkUrl;
 
   /// Whether this chapter looks like an ad / sponsor read (by title).
-  bool get isAd {
-    final t = title.toLowerCase();
-    const needles = [
-      'sponsor',
-      'advert',
-      'promo',
-      'werbung', // de
-      'anuncio', // es
-    ];
-    if (needles.any(t.contains)) return true;
-    // Standalone "ad" / "ads" token.
-    return RegExp(r'(^|\s)ads?(\s|:|$)').hasMatch(t);
-  }
+  bool get isAd => chapterTitleIsAd(title);
 }
+
+/// Whether a chapter titled [title] is an ad or a sponsor read: by whole
+/// words. Parts of words skipped real content ("Getting a promotion",
+/// "Bewerbung", "Advertising in the 50s"), and "Self-promo" was taken for
+/// a sponsor.
+bool chapterTitleIsAd(String title) => _adTitle.hasMatch(title);
+
+final _adTitle = RegExp(
+    r'\b(sponsors?|sponsored( by)?|sponsor (break|message|read)|ads?'
+    r'|ad (break|read|spot)|adverts?|advertisement|werbung|werbepause'
+    r'|anuncios?|publicidad)\b',
+    caseSensitive: false);
 
 /// A feed as it was last read ([PodcastService._fetchFeed]).
 class _FeedMemo {

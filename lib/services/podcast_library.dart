@@ -331,7 +331,7 @@ class PodcastLibrary {
   /// on; with [hold] (waiting for Wi-Fi) the new ones stay new for later.
   static List<MediaItem> _takeNew(Box b, String show, List<MediaItem> eps,
       ({String mode, String since, String seen}) job,
-      {bool hold = false}) {
+      {bool hold = false, bool keepNew = false}) {
     final cfg = Map<String, dynamic>.from(_show(show));
     final seenRaw = cfg[job.seen];
     final seen = seenRaw is List ? {for (final id in seenRaw) '$id'} : null;
@@ -341,7 +341,9 @@ class PodcastLibrary {
           seen: seen, sinceMs: since is int ? since : 0))
         if (!PodcastProgressService.isPlayed(e.id) && !isArchived(e.id)) e
     ];
-    final held = hold ? {for (final e in fresh) e.id} : const <String>{};
+    // [keepNew]: handed out, but new until the job is done with them.
+    final held =
+        hold || keepNew ? {for (final e in fresh) e.id} : const <String>{};
     cfg[job.seen] = {
       for (final e in eps)
         if (!held.contains(e.id)) e.id,
@@ -399,14 +401,33 @@ class PodcastLibrary {
     for (final MapEntry(key: show, value: eps) in shows.entries) {
       final wait =
           metered && newEpisodesDownloadFor(show) == NewEpisodesDownload.wifi;
-      out.addAll([
-        for (final e in _takeNew(b, show, eps, _downloadJob, hold: wait))
-          if (!PodcastDownloadService.isDownloaded(e.id) &&
-              ((e.extras?['url'] as String?)?.isNotEmpty ?? false))
-            e
-      ]);
+      // Held new until downloaded ([markDownloadTaken]): marked as looked
+      // at first, one that failed (or the app closed meanwhile) was never
+      // tried again.
+      for (final e in _takeNew(b, show, eps, _downloadJob, keepNew: true)) {
+        if (PodcastDownloadService.isDownloaded(e.id)) {
+          markDownloadTaken(show, e.id);
+        } else if (!wait &&
+            ((e.extras?['url'] as String?)?.isNotEmpty ?? false)) {
+          out.add(e);
+        }
+      }
     }
     return out;
+  }
+
+  /// The new episode [id] of [show] is downloaded: not new to the download
+  /// job any more (deleting it later doesn't bring it back).
+  static void markDownloadTaken(String show, String id) {
+    final b = _box(showBox);
+    if (b == null) return;
+    final cfg = Map<String, dynamic>.from(_show(show));
+    final seenRaw = cfg[_downloadJob.seen];
+    cfg[_downloadJob.seen] = {
+      id,
+      if (seenRaw is List) ...seenRaw.map((e) => '$e'),
+    }.take(queueSeenLimit).toList();
+    b.put(show, cfg);
   }
 
   /// Downloads [takeNewDownloads]' episodes one after another. Run on each
@@ -417,7 +438,16 @@ class PodcastLibrary {
     if (shows.isEmpty) return;
     final metered = await NetworkKind.isMetered();
     for (final e in takeNewDownloads(merged, metered: metered)) {
-      await PodcastDownloadService.download(e);
+      final show = podcastShowKey(e);
+      // Wi-Fi gone meanwhile: an "On Wi-Fi" show's episodes wait (they went
+      // on over mobile data).
+      if (show != null &&
+          newEpisodesDownloadFor(show) == NewEpisodesDownload.wifi &&
+          await NetworkKind.isMetered()) {
+        continue;
+      }
+      final ok = await PodcastDownloadService.download(e);
+      if (ok && show != null) markDownloadTaken(show, e.id);
     }
   }
 

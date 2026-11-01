@@ -97,6 +97,13 @@ void main() {
       expect(PodcastLibrary.takeNewDownloads(inbox, metered: true), isEmpty);
       expect(_ids(PodcastLibrary.takeNewDownloads(inbox, metered: false)),
           ['a1', 'a2']);
+      // Not downloaded yet (failed, or Riff closed meanwhile): asked again.
+      expect(_ids(PodcastLibrary.takeNewDownloads(inbox, metered: false)),
+          ['a1', 'a2']);
+      // Once downloaded, never again (deleting it doesn't bring it back).
+      for (final id in ['a1', 'a2']) {
+        PodcastLibrary.markDownloadTaken(_feedA, id);
+      }
       expect(PodcastLibrary.takeNewDownloads(inbox, metered: false), isEmpty);
     });
 

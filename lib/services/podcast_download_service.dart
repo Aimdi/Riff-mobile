@@ -330,7 +330,9 @@ class PodcastDownloadService {
   }
 
   static String _ext(String url) {
-    final path = Uri.tryParse(url)?.path ?? '';
+    // The address's last part only: `/v2.1/12` gave ".1/12", a folder
+    // that isn't there, and the episode never downloaded.
+    final path = Uri.tryParse(url)?.pathSegments.lastOrNull ?? '';
     final dot = path.lastIndexOf('.');
     if (dot != -1 && path.length - dot <= 5) return path.substring(dot);
     return '.mp3';
