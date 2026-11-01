@@ -1,3 +1,91 @@
+# 1.7.157
+
+**Fixes: playback, your library, podcasts, audiobooks and backups**
+
+Playback
+* Skipping or finishing a song no longer resets it to 0 first, so
+  Last.fm and ListenBrainz scrobbles aren't lost and long tracks keep
+  their place
+* A song played again after it ended (Previous back to it) plays on
+  instead of stopping at its end
+* Play next with shuffle on plays next; Repeat all with one song repeats
+  it; a slow search or radio lookup no longer replaces what you picked
+  meanwhile
+* A pause, an unplug or a stop while the next song loads stays paused
+  (no more music from the phone's speaker after the car is off)
+* The session is saved on every song change, pause and stop, so Riff
+  comes back to the right song and place
+* Repeat all asked for by the Assistant or a car no longer turns on
+  repeat one; headphones and watches play and pause in video mode;
+  "Play music on Riff" while Riff opens resumes the last session
+* Android Auto: your downloaded songs under Songs play, and the car's
+  lists refresh when Favorites or downloads change
+
+Library and downloads
+* Favorites keep their order: newest first, and Rearrange sticks
+* Add to playlist offers only your own and Piped playlists (songs added
+  to a YouTube Music copy were lost)
+* An open playlist shows songs added from elsewhere; Save, Download and
+  Smart order act on every song even while the page's search shows some
+  (Smart order could delete the rest)
+* Delete download deletes the right file; a playlist or album download
+  is done only when every song is; songs with very long names download
+* Wide screens: the mini player's download button no longer closes the
+  page
+* Albums saved without their songs (from your YouTube Music library) load
+  their songs when opened, also in the car
+* An artist's View all no longer empties the shelf it opened from
+* Spotify like sync works after an Exportify CSV import; importing
+  Spotify Liked Songs no longer likes them all on YouTube Music or
+  downloads them all
+* Playlist exports and shares include every song; songs on the phone go
+  out as files, not YouTube Music links
+* Stats and Rewind count songs only, not podcast episodes or audiobook
+  chapters
+
+Home
+* Long-press Play / Shuffle and Speed dial pins play your own playlists
+  and mixes (they failed with "Operation failed"), and saved albums play
+  offline
+* Recently played: mixes stay on their own shelf, a deleted playlist is
+  forgotten, playing again keeps the artist and cover
+* New episodes lists only shows you follow
+
+Podcasts
+* WebDAV sync at launch can no longer unfollow every show on every device
+* Episodes marked played anywhere leave the open Inbox
+* Mark all as listened keeps downloads until Undo is gone
+* Queued YouTube episodes keep their show's speed, skips and
+  notifications after a restart
+* A show that moved follows its new feed even after the old one is gone
+* New episodes set to download stay new until downloaded; "On Wi-Fi"
+  shows don't download over mobile data
+* Ad chapters are matched by whole words ("Getting a promotion" is no
+  longer skipped); a Self-promo chapter counts as self-promo
+* Feeds listed oldest first bring in their newest episodes; episodes of a
+  broken feed sharing one id are kept apart; more episode addresses
+  download
+* gpodder sync waits until your podcast lists are read at launch
+* YouTube episodes' transcripts are asked of YouTube's player, as the
+  watch page stopped listing them
+
+Audiobooks
+* A finished chapter keeps the book's place (Play no longer starts at
+  chapter 1); a free book restored with the last session keeps its place
+* Audiobookshelf: a place saved later on the server wins over the phone's
+
+Backups, lyrics and settings
+* Restore checks the backup before deleting anything: a wrong or
+  cut-short file leaves your data as it was, and restored downloads play
+  on every platform. Backups keep every file under its own name, and a
+  failed backup says so
+* Picking a lyrics source keeps lyrics you chose and those kept for
+  downloads; plain lyrics show for songs with synced lyrics only
+* Sleep timer "End of song" no longer pauses at once for live streams and
+  episodes without a length
+* Reset to default resets settings only, not your accounts, stats, pins,
+  covers or recent searches
+
 # 1.7.156
 
 * Home: Recently played, the albums and playlists you last played from,
