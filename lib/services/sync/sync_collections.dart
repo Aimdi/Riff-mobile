@@ -33,6 +33,11 @@ abstract class SyncCollection {
 
   String get contentType => 'application/json; charset=utf-8';
 
+  /// The boxes [readLocal] reads. While one isn't open yet (Riff still
+  /// starting) the collection waits for the next sync: read as empty, it
+  /// would have sent everything in it as deleted.
+  List<String> get boxes => const [];
+
   /// What the app holds now, by record id.
   Future<Map<String, LocalItem>> readLocal();
 
@@ -72,6 +77,9 @@ class PodcastSubscriptionsSync extends SyncCollection {
 
   @override
   String get name => 'podcast.subscriptions';
+
+  @override
+  List<String> get boxes => const ['PodcastSubs'];
   @override
   String get path => 'podcasts/subscriptions.opml';
   @override
@@ -141,6 +149,9 @@ class PodcastEpisodesSync extends SyncCollection {
 
   @override
   String get name => 'podcast.episodes';
+
+  @override
+  List<String> get boxes => const ['PodcastPlayed', 'PodcastProgress'];
   @override
   String get path => 'podcasts/episodes.json';
 
@@ -208,6 +219,9 @@ class PodcastBookmarksSync extends SyncCollection {
 
   @override
   String get name => 'podcast.bookmarks';
+
+  @override
+  List<String> get boxes => const [PodcastBookmarkStore.box];
   @override
   String get path => 'podcasts/bookmarks.json';
 
@@ -253,6 +267,9 @@ class PodcastStarredSync extends SyncCollection {
 
   @override
   String get name => 'podcast.starred';
+
+  @override
+  List<String> get boxes => const [StarredEpisodes.box];
   @override
   String get path => 'podcasts/starred.json';
 
@@ -298,6 +315,9 @@ class PodcastSegmentsSync extends SyncCollection {
 
   @override
   String get name => 'podcast.segments';
+
+  @override
+  List<String> get boxes => const [PodcastSegmentStore.manualBox];
   @override
   String get path => 'podcasts/segments.json';
 
