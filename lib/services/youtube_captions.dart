@@ -26,10 +26,26 @@ class YoutubeCaptions {
   static const _playerUrl =
       'https://www.youtube.com/youtubei/v1/player?prettyPrint=false';
 
-  /// Tried in order until one lists captions: the VR client the stream
-  /// resolver also leads with, then iOS.
+  /// Tried in order until one lists captions: the Android client without
+  /// an SDK version the stream resolver leads with (it isn't asked for a
+  /// proof-of-origin token), then VR and iOS.
   static const _clients =
       <({String id, String ua, Map<String, Object> client})>[
+    (
+      id: '3',
+      ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+      client: {
+        'clientName': 'ANDROID',
+        'clientVersion': '20.10.38',
+        'userAgent':
+            'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+        'osName': 'Android',
+        'osVersion': '11',
+        'hl': 'en',
+        'timeZone': 'UTC',
+        'utcOffsetMinutes': 0,
+      },
+    ),
     (
       id: '28',
       ua: 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; '
@@ -96,6 +112,11 @@ class YoutubeCaptions {
         );
         final found = parseCaptionTracks(res.data);
         if (found.isNotEmpty) return (tracks: found, ua: c.ua);
+        // Why not: the video has none, or YouTube wants a sign-in.
+        final status = res.data?['playabilityStatus'];
+        printERROR('Caption tracks (${c.client['clientName']}, $videoId): '
+            'none; ${status is Map ? '${status['status']} '
+                '${status['reason'] ?? ''}' : 'no status'}');
       } catch (e) {
         printERROR('Caption tracks (${c.client['clientName']}, $videoId): $e');
       }
@@ -114,7 +135,10 @@ class YoutubeCaptions {
         ),
       );
       final body = res.data?.trim() ?? '';
-      return body.startsWith('WEBVTT') ? body : null;
+      if (body.startsWith('WEBVTT')) return body;
+      printERROR('Caption file: HTTP ${res.statusCode}, '
+          '${body.length} chars, not WebVTT');
+      return null;
     } catch (e) {
       printERROR('Caption file failed: $e');
       return null;
