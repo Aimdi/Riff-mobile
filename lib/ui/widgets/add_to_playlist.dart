@@ -167,7 +167,12 @@ Future<List<MediaItem>> addNewSongsToPlaylistBox(
   return added;
 }
 
-Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
+/// Adds [songs] to Favorites. [imported] (likes brought in from another
+/// service): only into Favorites, not liked on YouTube Music too nor
+/// downloaded with "Download Favorites" on (1,500 Spotify likes queued
+/// 1,500 of each).
+Future<bool> addSongsToLikedSongs(List<MediaItem> songs,
+    {bool imported = false}) async {
   final box = Hive.isBoxOpen('LIBFAV')
       ? Hive.box('LIBFAV')
       : await Hive.openBox('LIBFAV');
@@ -181,6 +186,14 @@ Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
     addedAny = true;
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
+    }
+    if (imported) {
+      try {
+        Get.find<PlaylistScreenController>(
+                tag: const Key('LIBFAV').hashCode.toString())
+            .addNRemoveItemsinList(song, action: 'add', index: 0);
+      } catch (_) {}
+      continue;
     }
     unawaited(SpotifyLikeSync.onFavorite(song, add: true));
     unawaited(YtLikeSync.onFavorite(song, add: true));

@@ -1589,9 +1589,12 @@ class MusicServices extends getx.GetxService {
       "results": [],
     };
     final data = _ctx();
-    browseEndpoint.remove("content");
-    if (browseEndpoint.isEmpty) return result;
-    data.addAll(browseEndpoint);
+    // A copy: the map given is the artist page's own shelf, and taking its
+    // content out emptied that shelf (Popular gone after its View all).
+    final endpoint = Map<String, dynamic>.from(browseEndpoint)
+      ..remove("content");
+    if (endpoint.isEmpty) return result;
+    data.addAll(endpoint);
     final response =
         (await _sendRequest("browse", data, additionalParams: additionalParams))
             .data;

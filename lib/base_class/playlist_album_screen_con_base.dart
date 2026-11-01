@@ -76,7 +76,8 @@ abstract class PlaylistAlbumScreenControllerBase extends GetxController {
 
   /// Checks the download status of the album/playlist.
   void checkDownloadStatus() {
-    bool downloaded = true;
+    // Nothing in it (not loaded): not "downloaded".
+    bool downloaded = songList.isNotEmpty;
     for (MediaItem item in songList) {
       if (!Hive.box("SongDownloads").containsKey(item.id)) {
         downloaded = false;

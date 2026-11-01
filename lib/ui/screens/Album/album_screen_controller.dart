@@ -87,8 +87,19 @@ class AlbumScreenController extends PlaylistAlbumScreenControllerBase
             .map<MediaItem?>((item) => MediaItemBuilder.fromJson(item))
             .whereType<MediaItem>()
             .toList();
-        // Saved: its page, for its other versions, when it can be reached.
-        unawaited(_loadOtherVersions(albumId));
+        if (songList.isEmpty) {
+          // Saved without its songs (brought in from your YouTube Music
+          // library, or saved before they loaded): read them now, and keep
+          // them. It opened empty, with Play off.
+          final content =
+              await musicServices.getPlaylistOrAlbumSongs(albumId: albumId);
+          songList.value = List<MediaItem>.from(content['tracks'] ?? const []);
+          _takeOtherVersions(content);
+          if (songList.isNotEmpty) await updateSongsIntoDb();
+        } else {
+          // Saved: its page, for its other versions, when it can be reached.
+          unawaited(_loadOtherVersions(albumId));
+        }
         // Shared box (Hive hands every caller the same instance): never close
         // it here, or the player and other screens using it fail mid-write.
       }

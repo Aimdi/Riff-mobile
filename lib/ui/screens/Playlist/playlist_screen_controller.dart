@@ -620,7 +620,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
       () => jsonEncode(withoutServerLogins({
             "playlistInfo": playlist.value.toJson(),
             "songs":
-                songList.map((song) => MediaItemBuilder.toJson(song)).toList(),
+                allSongs.map((song) => MediaItemBuilder.toJson(song)).toList(),
             "exportDate": DateTime.now().toIso8601String(),
             "appVersion": Get.find<SettingsScreenController>().currentVersion,
           })));
@@ -634,7 +634,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
   /// (Metrolist, VLC, foobar2000) open it, and Riff's import brings it
   /// back song for song.
   Future<void> exportPlaylistToM3u(BuildContext context) => _exportText(
-      context, 'm3u8', () => playlistM3u(playlist.value.title, songList));
+      context, 'm3u8', () => playlistM3u(playlist.value.title, allSongs));
 
   /// Shares one of your playlists as Spotify shares one: its name with a
   /// link anyone can open (YouTube plays its first 50 songs) and its M3U
@@ -644,9 +644,10 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     final dir = await path_provider.getTemporaryDirectory();
     final safe = name.replaceAll(RegExp(r'[^\w\s]+'), '_').trim();
     final file = File('${dir.path}/${safe.isEmpty ? 'Playlist' : safe}.m3u8');
-    await file.writeAsString(playlistM3u(name, songList));
+    // Every song, also while the page's search shows some.
+    await file.writeAsString(playlistM3u(name, allSongs));
     await Share.shareXFiles([XFile(file.path, mimeType: 'audio/x-mpegurl')],
-        subject: name, text: SongLinkShare.playlistText(name, songList));
+        subject: name, text: SongLinkShare.playlistText(name, allSongs));
   }
 
   /// Writes what [content] makes as "<playlist name>.<extension>" (name_1,
@@ -739,7 +740,7 @@ class PlaylistScreenController extends PlaylistAlbumScreenControllerBase
     buffer.writeln('PlaylistBrowseId,PlaylistName,MediaId,Title,Artists,Duration,ThumbnailUrl,AlbumId,AlbumTitle,ArtistIds');
     
     // CSV Rows - one for each song
-    for (final song in songList) {
+    for (final song in allSongs) {
       // Keep playlistBrowseId blank for offline/piped playlists
       final playlistBrowseId = (!playlist.value.isCloudPlaylist || playlist.value.isPipedPlaylist)
           ? ''

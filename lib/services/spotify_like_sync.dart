@@ -271,9 +271,14 @@ class SpotifyLikeSync {
     final cached = reverse.get(videoId);
     final now = DateTime.now().millisecondsSinceEpoch;
     if (cached is Map && cached['id'] is String) {
-      final id = cached['id'] as String;
+      final kept = cached['id'] as String;
       final at = cached['at'] is int ? cached['at'] as int : 0;
-      if (id.isNotEmpty || now - at < notFoundRetry.inMilliseconds) return id;
+      // A URI kept before (from a CSV import) as its bare id.
+      final id = kept.isEmpty ? '' : spotifyTrackIdOf(kept);
+      if (id != null &&
+          (id.isNotEmpty || now - at < notFoundRetry.inMilliseconds)) {
+        return id;
+      }
     }
     final fromMatches = await _fromMatchStore(videoId);
     if (fromMatches != null) {
@@ -301,7 +306,8 @@ class SpotifyLikeSync {
     if (box == null) return null;
     for (final k in box.keys) {
       final e = SpotifyMatchEntry.fromJson(box.get(k));
-      if (e != null && e.videoId == videoId) return '$k';
+      if (e == null || e.videoId != videoId) continue;
+      if (spotifyTrackIdOf('$k') case final id?) return id;
     }
     return null;
   }

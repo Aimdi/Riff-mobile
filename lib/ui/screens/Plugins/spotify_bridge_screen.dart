@@ -272,7 +272,7 @@ class _SpotifyBridgeScreenState extends State<SpotifyBridgeScreen> {
     _status.value = 'spotifyImportFetching'.tr;
     try {
       final (added, total) = await SpotifyLikeSync.importLikesToFavorites(
-        addSongsToLikedSongs,
+        (songs) => addSongsToLikedSongs(songs, imported: true),
         onProgress: (done, total) {
           _progress.value = done / total;
           _status.value = '${'spotifyImportResolving'.tr} $done / $total';

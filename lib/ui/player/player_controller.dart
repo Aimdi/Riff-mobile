@@ -2656,6 +2656,14 @@ class PlayerController extends GetxController
   int get repeatState =>
       isLoopModeEnabled.value ? 2 : (isQueueLoopModeEnabled.value ? 1 : 0);
 
+  /// Sets repeat to [target] (0 off, 1 repeat all, 2 repeat one), as the
+  /// repeat button would (repeat all asked for from outside the app).
+  Future<void> setRepeatState(int target) async {
+    for (var i = 0; i < 3 && repeatState != target; i++) {
+      await cycleRepeatMode();
+    }
+  }
+
   /// Cycle the repeat button: off → repeat all → repeat one → off.
   Future<void> cycleRepeatMode() async {
     switch (repeatState) {

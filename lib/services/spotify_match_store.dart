@@ -46,6 +46,20 @@ class SpotifyMatchEntry {
 bool cacheableSpotifyId(String id) =>
     id.isNotEmpty && !id.startsWith('csv_') && !id.contains(' ');
 
+final _trackId = RegExp(r'^[A-Za-z0-9]+$');
+final _trackIdIn = RegExp(r'(?:spotify:track:|/track/)([A-Za-z0-9]{22})');
+
+/// The bare Spotify track id (letters and digits, 22 of them from
+/// Spotify) in [raw]: one as it is, or in a `spotify:track:` URI or an open.spotify.com link (as
+/// Exportify writes them); null when there's none. A URI kept as the id
+/// went to Spotify as `spotify:track:spotify:track:…`, and the like sync
+/// failed for good.
+String? spotifyTrackIdOf(String raw) {
+  final s = raw.trim();
+  if (_trackId.hasMatch(s)) return s;
+  return _trackIdIn.firstMatch(s)?.group(1);
+}
+
 /// Whether an automatic match may be stored over [existing]: never over a
 /// listener's own choice.
 bool mayStoreAutoMatch(SpotifyMatchEntry? existing) =>

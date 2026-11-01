@@ -109,12 +109,14 @@ class StatsService {
   static int get totalSkips =>
       _songs.values.fold<int>(0, (sum, v) => sum + _intOf(_asMap(v)["skips"]));
 
+  /// Artists heard: music only (podcast shows and authors aren't).
   static int get uniqueArtists {
     final set = <String>{};
-    for (final v in _songs.values) {
-      final a = '${_asMap(v)["artist"] ?? ""}';
-      if (a.isNotEmpty) set.add(a);
-    }
+    _songs.toMap().forEach((id, raw) {
+      final row = _asMap(raw);
+      final a = '${row["artist"] ?? ""}';
+      if (a.isNotEmpty && !isNonMusicStat('$id', row)) set.add(a);
+    });
     return set.length;
   }
 
@@ -224,9 +226,12 @@ bool isNonMusicStat(String id, Map<String, dynamic> row) {
 /// [StatsService.topSongs] lists them.
 List<Map<String, dynamic>> rankTopSongs(Map<dynamic, dynamic> rows,
     [int n = 10]) {
+  // Music only, as the artists and the 4-week and 6-month lists: an
+  // audiobook listener's top songs were chapters, and Rewind's top song
+  // could be one.
   final list = [
     for (final e in rows.entries)
-      if (_asMap(e.value) case final v)
+      if (_asMap(e.value) case final v when !isNonMusicStat('${e.key}', v))
         {
           "id": e.key,
           "title": v["title"] ?? "",

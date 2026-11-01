@@ -108,11 +108,8 @@ void main() {
     expect(player.from?.type, PlaylingFromType.SELECTION);
     expect(player.from?.nameString, 'topSongs');
 
-    // An episode in the list doesn't play from here.
-    player.played = null;
-    await tester.tap(find.text('An episode'));
-    await tester.pump();
-    expect(player.played, isNull);
+    // Episodes aren't top songs (nor audiobook chapters).
+    expect(find.text('An episode'), findsNothing);
 
     await tester.tap(find.text('play'));
     await tester.pump();

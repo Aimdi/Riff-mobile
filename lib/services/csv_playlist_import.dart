@@ -5,6 +5,7 @@ library;
 
 import 'spotify_import_service.dart' show SpotifyTrackRef;
 import 'youtube_links.dart';
+import 'spotify_match_store.dart' show spotifyTrackIdOf;
 
 /// Which tool made the file, or which kind of playlist file it is (for the
 /// summary only; a CSV is read by its header). M3U and PLS files are read
@@ -169,7 +170,7 @@ CsvPlaylist parsePlaylistCsv(String text) {
     final uri = cell(r, spotifyUri);
     name ??= cell(r, playlistName).isEmpty ? null : cell(r, playlistName);
     tracks.add(SpotifyTrackRef(
-      id: uri.isNotEmpty ? uri : 'csv_$n',
+      id: spotifyTrackIdOf(uri) ?? 'csv_$n',
       title: t,
       artists: artists,
       durationMs: ms != null && ms > 0 ? ms : null,
