@@ -81,6 +81,11 @@ class PodcastProgressService {
       'chaptersUrl': episodeChaptersUrl(episode),
       'transcriptUrl': episode.extras?['transcriptUrl'],
       'transcriptType': episode.extras?['transcriptType'],
+      // A YouTube episode's show (its own settings), and that it is one.
+      if (episode.extras?['podcastPlaylistId'] != null)
+        'podcastPlaylistId': episode.extras?['podcastPlaylistId'],
+      if (episode.extras?['podcastSource'] != null)
+        'podcastSource': episode.extras?['podcastSource'],
       'positionMs': posMs,
       'durationMs': totMs,
       'updatedAt': nowMs,
@@ -206,6 +211,9 @@ class PodcastProgressService {
           if (r['chaptersUrl'] != null) 'chaptersUrl': r['chaptersUrl'],
           if (r['transcriptUrl'] != null) 'transcriptUrl': r['transcriptUrl'],
           if (r['transcriptUrl'] != null) 'transcriptType': r['transcriptType'],
+          if (r['podcastPlaylistId'] != null)
+            'podcastPlaylistId': r['podcastPlaylistId'],
+          if (r['podcastSource'] != null) 'podcastSource': r['podcastSource'],
         },
       );
 }

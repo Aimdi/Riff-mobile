@@ -108,4 +108,25 @@ void main() {
     expect(notified, 1);
     expect(written, 1);
   });
+
+  // Its show's own speed, skips and notifications follow a YouTube episode
+  // by this id; the queue used to drop it.
+  test("queue persistence keeps a YouTube episode's show", () async {
+    final c = Get.find<PodcastQueueController>();
+    c.add(const MediaItem(
+      id: 'avqe38VzuC0',
+      title: 'Episode',
+      artist: 'Podcast',
+      extras: {
+        'isPodcast': true,
+        'podcastPlaylistId': 'MPSPPLshow',
+        'podcastSource': 'yt_music_podcast',
+      },
+    ));
+    Get.delete<PodcastQueueController>();
+    Get.put(PodcastQueueController());
+    final reloaded = Get.find<PodcastQueueController>().queue.single;
+    expect(reloaded.extras?['podcastPlaylistId'], 'MPSPPLshow');
+    expect(reloaded.extras?['podcastSource'], 'yt_music_podcast');
+  });
 }
