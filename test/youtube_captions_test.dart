@@ -60,4 +60,14 @@ void main() {
     expect(parseVisitorData('<html>'), isNull);
     expect(parseVisitorData(null), isNull);
   });
+
+  test("a watch page's cookies, with a browser's consent ones", () {
+    expect(
+        watchPageCookies([
+          'YSC=abc123; Domain=.youtube.com; Path=/; Secure; HttpOnly',
+          'VISITOR_INFO1_LIVE=xyz; Domain=.youtube.com; Expires=Fri',
+          'broken',
+        ]),
+        'YSC=abc123; VISITOR_INFO1_LIVE=xyz; PREF=hl=en; SOCS=CAI; GPS=1');
+  });
 }

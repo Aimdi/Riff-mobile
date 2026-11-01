@@ -113,11 +113,46 @@ class YoutubeCaptions {
     }
   }
 
+  /// The video's watch page, as a browser opens it, for the cookies and
+  /// visitor id YouTube gives it: player requests sent with them aren't
+  /// asked to sign in (youtube_explode's stream client does the same).
+  static Future<({String cookie, String? visitor})?> _watchPage(
+      String videoId) async {
+    try {
+      final res = await _dio.get<String>(
+        'https://www.youtube.com/watch?v=$videoId&bpctr=9999999999'
+        '&has_verified=1&hl=en',
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/96.0.4664.18 Safari/537.36',
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-us,en;q=0.5',
+            'Cookie': 'PREF=hl=en&tz=UTC; SOCS=CAI; GPS=1',
+          },
+        ),
+      );
+      return (
+        cookie: watchPageCookies(res.headers['set-cookie'] ?? const []),
+        visitor: RegExp(r'"VISITOR_DATA":"([^"]+)"')
+            .firstMatch(res.data ?? '')
+            ?.group(1),
+      );
+    } catch (e) {
+      printERROR('Watch page failed ($videoId): $e');
+      return null;
+    }
+  }
+
   /// The tracks [videoId] offers, with the user agent of the client that
   /// listed them (their files are fetched with it); empty when none does.
   static Future<({List<YoutubeCaptionTrack> tracks, String ua})> tracks(
       String videoId) async {
-    final visitor = await _visitor();
+    final page = await _watchPage(videoId);
+    final visitor = page?.visitor ?? await _visitor();
     for (final c in _clients) {
       try {
         final res = await _dio.post<Map<String, dynamic>>(
@@ -140,6 +175,7 @@ class YoutubeCaptions {
               'X-YouTube-Client-Name': c.id,
               'X-YouTube-Client-Version': c.client['clientVersion'],
               if (visitor != null) 'X-Goog-Visitor-Id': visitor,
+              if (page != null) 'Cookie': page.cookie,
               'Origin': 'https://www.youtube.com',
               'Content-Type': 'application/json',
             },
@@ -201,6 +237,20 @@ List<YoutubeCaptionTrack> parseCaptionTracks(Object? player) {
           auto: t['kind'] == 'asr',
         ),
   ];
+}
+
+/// The cookies a watch page set (its `Set-Cookie` headers), with the
+/// consent ones a browser sends, as one `Cookie` header.
+String watchPageCookies(List<String> setCookies) {
+  final jar = <String, String>{};
+  for (final c in setCookies) {
+    final pair = c.split(';').first;
+    final eq = pair.indexOf('=');
+    if (eq <= 0) continue;
+    jar[pair.substring(0, eq).trim()] = pair.substring(eq + 1).trim();
+  }
+  jar.addAll({'PREF': 'hl=en', 'SOCS': 'CAI', 'GPS': '1'});
+  return [for (final e in jar.entries) '${e.key}=${e.value}'].join('; ');
 }
 
 /// The visitor id in YouTube's `sw.js_data` reply (JSON after a `)]}'`
