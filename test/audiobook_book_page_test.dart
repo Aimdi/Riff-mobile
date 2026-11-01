@@ -18,11 +18,13 @@ Widget _app(Widget child) => MaterialApp(
       home: Scaffold(body: ListView(children: [child])),
     );
 
-AbsBookDetail _book({double currentTime = 0}) => AbsBookDetail(
+AbsBookDetail _book({double currentTime = 0, int serverAt = 0}) =>
+    AbsBookDetail(
       id: 'b1',
       title: 'Project Hail Mary',
       author: 'Andy Weir',
       currentTime: currentTime,
+      progressUpdatedAt: serverAt,
       tracks: [
         for (var n = 0; n < 4; n++)
           AbsAudioTrack(
@@ -163,6 +165,25 @@ void main() {
         'updatedAt': 1,
       });
       expect(absResumePoint(_book(currentTime: 1500)), (1, 42000));
+    });
+
+    // Heard on in another Audiobookshelf app since: this phone's older
+    // place used to win, and then overwrote the server's.
+    test("the server's place when it's clearly newer", () async {
+      const localAt = 1000000;
+      await Hive.box(AudiobookProgressService.boxName).put('abs_b1_1', {
+        'id': AudiobookshelfService.trackMediaId('b1', 1),
+        'bookId': 'b1',
+        'positionMs': 42000,
+        'updatedAt': localAt,
+      });
+      final later = localAt + const Duration(hours: 1).inMilliseconds;
+      expect(absResumePoint(_book(currentTime: 1500, serverAt: later)),
+          (2, 300000));
+      // Riff's own sync, a little after its last save: still this phone's.
+      expect(
+          absResumePoint(_book(currentTime: 1500, serverAt: localAt + 30000)),
+          (1, 42000));
     });
   });
 }

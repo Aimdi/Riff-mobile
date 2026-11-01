@@ -60,11 +60,18 @@ Future<bool> playAudiobook({
 
 /// Where Play picks up the Audiobookshelf book [detail]: the track and the
 /// position in it (ms). This phone's last place wins over the server's,
-/// which lags by up to the sync interval; without one, the server's place
-/// (a book heard in another Audiobookshelf app).
+/// which lags by up to the sync interval, unless the server's is clearly
+/// newer (the book heard on in another Audiobookshelf app since: this
+/// phone's older place used to win, then overwrite it). Without one, the
+/// server's place.
 (int, int) absResumePoint(AbsBookDetail detail) {
   final local = AudiobookProgressService.lastTrackForBook(detail.id);
-  final at = local == null
+  final localAt = local?['updatedAt'];
+  final serverNewer = detail.progressUpdatedAt > 0 &&
+      localAt is int &&
+      detail.progressUpdatedAt >
+          localAt + absNewerElsewhereMargin.inMilliseconds;
+  final at = local == null || serverNewer
       ? -1
       : detail.tracks.indexWhere((t) =>
           AudiobookshelfService.trackMediaId(detail.id, t.index) ==
@@ -79,6 +86,11 @@ Future<bool> playAudiobook({
   );
   return (mapped.$1, mapped.$2.inMilliseconds);
 }
+
+/// How much newer the server's place must be than this phone's to win:
+/// Riff's own syncs land a little after its last local save, and the
+/// phone's and the server's clocks may differ.
+const absNewerElsewhereMargin = Duration(minutes: 2);
 
 /// Play a free (LibriVox) book, resuming the last chapter and position
 /// unless [index] picks a chapter.
