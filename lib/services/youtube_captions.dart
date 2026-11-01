@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '/utils/helper.dart' show printERROR;
@@ -72,9 +74,13 @@ class YoutubeCaptions {
         'clientVersion': '20.10.4',
         'deviceMake': 'Apple',
         'deviceModel': 'iPhone16,2',
-        'osName': 'iPhone',
-        'osVersion': '18.3.2.22D82',
+        'userAgent': 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU '
+            'iOS 18_3_2 like Mac OS X;)',
+        'platform': 'MOBILE',
+        'osName': 'IOS',
+        'osVersion': '18.1.0.22B83',
         'hl': 'en',
+        'gl': 'US',
         'timeZone': 'UTC',
         'utcOffsetMinutes': 0,
       },
@@ -86,16 +92,43 @@ class YoutubeCaptions {
     receiveTimeout: const Duration(seconds: 30),
   ));
 
+  static String? _visitorData;
+
+  /// A visitor id, as the iOS app has one: without it YouTube asks
+  /// connections it doesn't trust to sign in ("confirm you're not a bot").
+  static Future<String?> _visitor() async {
+    if (_visitorData != null) return _visitorData;
+    try {
+      final res = await _dio.get<String>(
+        'https://www.youtube.com/sw.js_data',
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {'User-Agent': _clients.last.ua},
+        ),
+      );
+      return _visitorData = parseVisitorData(res.data);
+    } catch (e) {
+      printERROR('Visitor id failed: $e');
+      return null;
+    }
+  }
+
   /// The tracks [videoId] offers, with the user agent of the client that
   /// listed them (their files are fetched with it); empty when none does.
   static Future<({List<YoutubeCaptionTrack> tracks, String ua})> tracks(
       String videoId) async {
+    final visitor = await _visitor();
     for (final c in _clients) {
       try {
         final res = await _dio.post<Map<String, dynamic>>(
           _playerUrl,
           data: {
-            'context': {'client': c.client},
+            'context': {
+              'client': {
+                ...c.client,
+                if (visitor != null) 'visitorData': visitor,
+              },
+            },
             'videoId': videoId,
             'contentCheckOk': true,
             'racyCheckOk': true,
@@ -106,6 +139,8 @@ class YoutubeCaptions {
               'User-Agent': c.ua,
               'X-YouTube-Client-Name': c.id,
               'X-YouTube-Client-Version': c.client['clientVersion'],
+              if (visitor != null) 'X-Goog-Visitor-Id': visitor,
+              'Origin': 'https://www.youtube.com',
               'Content-Type': 'application/json',
             },
           ),
@@ -166,6 +201,19 @@ List<YoutubeCaptionTrack> parseCaptionTracks(Object? player) {
           auto: t['kind'] == 'asr',
         ),
   ];
+}
+
+/// The visitor id in YouTube's `sw.js_data` reply (JSON after a `)]}'`
+/// guard); null in another shape.
+String? parseVisitorData(String? body) {
+  var text = body?.trim() ?? '';
+  if (text.startsWith(")]}'")) text = text.substring(4);
+  try {
+    final v = jsonDecode(text)[0][2][0][0][13];
+    return v is String && v.isNotEmpty ? v : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// A caption track's address asking for WebVTT, its other parameters kept.

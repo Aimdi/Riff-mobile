@@ -52,4 +52,12 @@ void main() {
     expect(q['lang'], 'en');
     expect(q['caps'], 'asr');
   });
+
+  test("the visitor id in YouTube's sw.js_data reply", () {
+    const reply = ")]}'\n[[\"a\",1,[[[null,null,null,null,null,null,null,"
+        "null,null,null,null,null,null,\"CgtWaXNpdG9y\"]]]]]";
+    expect(parseVisitorData(reply), 'CgtWaXNpdG9y');
+    expect(parseVisitorData('<html>'), isNull);
+    expect(parseVisitorData(null), isNull);
+  });
 }
