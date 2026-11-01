@@ -2779,7 +2779,10 @@ class PlayerController extends GetxController
   Future<void> _persistFavourite(MediaItem currMediaItem, bool adding) async {
     final box = await HiveBoxes.fav();
     adding
-        ? box.put(currMediaItem.id, MediaItemBuilder.toJson(currMediaItem))
+        ? box.put(
+            currMediaItem.id,
+            HiveBoxes.favEntry(MediaItemBuilder.toJson(currMediaItem),
+                DateTime.now().millisecondsSinceEpoch))
         : box.delete(currMediaItem.id);
     try {
       final playlistController = Get.find<PlaylistScreenController>(

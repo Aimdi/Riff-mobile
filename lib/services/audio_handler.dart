@@ -3289,7 +3289,10 @@ class MediaLibrary {
     } catch (e) {
       box = await Hive.openBox(libId);
     }
-    final songs = box.values.toList().map((e) {
+    final values = libId == HiveBoxes.libFav
+        ? HiveBoxes.favoritesInOrder(box.values)
+        : box.values.toList();
+    final songs = values.map((e) {
       final song = MediaItemBuilder.fromJson(e);
       return MediaItem(
         id: song.id,

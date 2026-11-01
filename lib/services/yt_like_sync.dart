@@ -92,13 +92,16 @@ class YtLikeSync {
     // Unliked in Riff, its unlike still on its way: it stays out.
     final queue = await _open(queueBox);
     bool unliking(String id) => _opOf(queue.get(id)) == LikeOp.remove;
+    // Liked now, in YouTube Music's order (its newest first).
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    var i = 0;
     final fresh = <String, dynamic>{
       for (final song in likes)
         if (_videoId.hasMatch(song.id) &&
             !song.isPodcastEpisode &&
             !fav.containsKey(song.id) &&
             !unliking(song.id))
-          song.id: MediaItemBuilder.toJson(song),
+          song.id: HiveBoxes.favEntry(MediaItemBuilder.toJson(song), at - i++),
     };
     if (fresh.isNotEmpty) await fav.putAll(fresh);
     await _prefs?.put(

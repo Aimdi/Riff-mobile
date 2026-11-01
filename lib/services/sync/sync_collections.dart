@@ -475,10 +475,16 @@ class FavoritesSync extends SyncCollection {
       if (e.value.deleted) {
         await fav.delete(e.key);
       } else {
-        await fav.put(e.key, {
+        final song = {
           ...storedSongFromSync(e.value.data ?? const {}),
           'videoId': e.key
-        });
+        };
+        // Its place in the list: as sent, else as kept here, else on top.
+        final kept = fav.get(e.key);
+        final at = song[HiveBoxes.favAtKey] ??
+            (kept is Map ? kept[HiveBoxes.favAtKey] : null) ??
+            DateTime.now().millisecondsSinceEpoch;
+        await fav.put(e.key, {...song, HiveBoxes.favAtKey: at});
       }
     }
     if (Get.isRegistered<LibraryPlaylistsController>()) {

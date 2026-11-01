@@ -11,6 +11,7 @@ import '../../services/music_service.dart';
 import '../../services/piped_service.dart';
 import '../../services/playlist_mix_service.dart';
 import '../../utils/helper.dart' show printERROR;
+import '../../utils/hive_boxes.dart';
 import '../player/play_queue_order.dart';
 import '../player/player_controller.dart';
 
@@ -120,7 +121,10 @@ Future<List<MediaItem>> tracksFromOpenBox(String id) async {
       await Hive.openBox(id);
     }
     final tracks = <MediaItem>[];
-    for (final raw in Hive.box(id).values) {
+    final box = Hive.box(id);
+    for (final raw in id == HiveBoxes.libFav
+        ? HiveBoxes.favoritesInOrder(box.values)
+        : box.values) {
       try {
         final item = MediaItemBuilder.fromJson(raw);
         if (item.id.isNotEmpty) tracks.add(item);

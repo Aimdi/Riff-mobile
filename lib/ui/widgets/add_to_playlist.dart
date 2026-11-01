@@ -14,6 +14,7 @@ import '../../services/piped_service.dart';
 import '../../services/spotify_like_sync.dart';
 import '../../services/yt_like_sync.dart';
 import '/models/media_Item_builder.dart';
+import '/utils/hive_boxes.dart';
 import '/ui/player/player_controller.dart';
 import '/ui/screens/Library/library_controller.dart';
 import '/ui/screens/Playlist/playlist_screen_controller.dart';
@@ -173,7 +174,10 @@ Future<bool> addSongsToLikedSongs(List<MediaItem> songs) async {
   var addedAny = false;
   for (final song in songs) {
     if (box.containsKey(song.id)) continue;
-    await box.put(song.id, MediaItemBuilder.toJson(song));
+    await box.put(
+        song.id,
+        HiveBoxes.favEntry(MediaItemBuilder.toJson(song),
+            DateTime.now().millisecondsSinceEpoch));
     addedAny = true;
     if (Get.isRegistered<DiscoveryService>()) {
       Get.find<DiscoveryService>().onFavorite(song, add: true);
