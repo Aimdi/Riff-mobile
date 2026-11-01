@@ -11,6 +11,7 @@ import '/models/media_item_extras.dart';
 import '/utils/helper.dart';
 import 'podcast_segments.dart' show looksLikeYoutubeVideoId;
 import 'podcast_service.dart';
+import 'youtube_captions.dart';
 
 /// Where an episode's transcript comes from, in priority order: the feed's
 /// Podcasting 2.0 `<podcast:transcript>`, then YouTube captions for
@@ -188,6 +189,11 @@ class PodcastTranscriptService {
       youtubeAvailable[id] = cached.cues.isNotEmpty;
       return;
     }
+    // The player API first: the watch page lists no tracks any more.
+    if ((await YoutubeCaptions.tracks(id)).tracks.isNotEmpty) {
+      youtubeAvailable[id] = true;
+      return;
+    }
     final yt = YoutubeExplode();
     try {
       final manifest = await yt.videos.closedCaptions
@@ -246,6 +252,8 @@ class PodcastTranscriptService {
   }
 
   static Future<LoadedTranscript> _youtube(String id) async {
+    final fromPlayer = await _youtubeFromPlayer(id);
+    if (fromPlayer != null) return fromPlayer;
     final yt = YoutubeExplode();
     try {
       final manifest = await yt.videos.closedCaptions
@@ -270,6 +278,26 @@ class PodcastTranscriptService {
     } finally {
       yt.close();
     }
+  }
+
+  /// The captions as YouTube's player API lists them ([YoutubeCaptions]);
+  /// null when it lists none or the file doesn't come.
+  static Future<LoadedTranscript?> _youtubeFromPlayer(String id) async {
+    final (:tracks, :ua) = await YoutubeCaptions.tracks(id);
+    final pick = pickCaptionTrack(
+        [for (final t in tracks) (lang: t.lang, auto: t.auto)],
+        _appLanguage());
+    if (pick < 0) return null;
+    final track = tracks[pick];
+    final vtt = await YoutubeCaptions.vtt(track, ua: ua);
+    if (vtt == null) return null;
+    // Off the UI isolate: hours of rolling captions are a big document.
+    final cues = await Isolate.run(() => PodcastService.parseTranscriptDocument(
+        vtt,
+        type: 'text/vtt',
+        rolling: track.auto));
+    if (cues.isEmpty) return null;
+    return LoadedTranscript(cues, youtube: true, auto: track.auto);
   }
 
   static String _appLanguage() {
